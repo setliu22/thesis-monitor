@@ -14,7 +14,7 @@ Verified locally on November 14, 2026 (America/New_York). This record distinguis
 
 ## External checks pending
 
-- Live SEC calls, actual CACI tag review, and a real financial alert: pending a valid user-supplied SEC contact identity. The application deliberately starts in a visible setup-needed state instead of inventing contact information or financial records.
+- Live SEC submissions and companyfacts fetches succeeded on November 15, 2026 after the user supplied a contact identity. Two refresh jobs completed, 60 recent filing records were returned by the UI API, and the browser displayed CACI quarterly revenue, growth, and operating margin for September 30, 2026. Free cash flow remained unavailable. A real threshold alert and detailed issuer-specific mapping review remain unverified. Contact details are kept only in the ignored local .env file.
 - Paid model integration: no provider key supplied; tested using mocked HTTP responses at the external transport boundary. Model usefulness/accuracy has not been empirically evaluated on a labeled corpus.
 - Docker image builds and Compose startup: A Docker runtime is not installed in this environment. CI is configured to validate Compose and the database-backed tests when the repository is pushed, but no remote CI run is claimed.
 
