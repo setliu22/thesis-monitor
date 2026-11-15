@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: thesis
+      POSTGRES_PASSWORD: thesis
+      POSTGRES_DB: thesis
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U thesis -d thesis']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://thesis:thesis@db:5432/thesis
+    command: ['alembic', 'upgrade', 'head']
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: ./backend
+    environment: &app_env
+      DATABASE_URL: postgresql+psycopg://thesis:thesis@db:5432/thesis
+      SEC_USER_AGENT: ${SEC_USER_AGENT:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      REFRESH_SECONDS: ${REFRESH_SECONDS:-3600}
+    ports:
+      - '127.0.0.1:8000:8000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build: ./backend
+    environment: *app_env
+    command: ['python', '-m', 'app.worker']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  postgres_data:
