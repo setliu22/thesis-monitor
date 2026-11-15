@@ -32,3 +32,16 @@ def test_competing_claims_do_not_return_same_job(sessions):
     with sessions() as s: enqueue_refresh(s,1); s.commit()
     assert claim_job(sessions,'one') is not None
     assert claim_job(sessions,'two') is None
+
+
+def test_skip_locked_lets_another_worker_claim_other_company(sessions):
+    import pytest
+    from app.models import Company
+    if sessions.kw['bind'].dialect.name!='postgresql': pytest.skip('Requires PostgreSQL row locks')
+    with sessions() as s:
+        s.add(Company(ticker='TEST',name='Synthetic Test Company',cik='0000000001')); s.flush()
+        first=enqueue_refresh(s,1); second=enqueue_refresh(s,2); s.commit()
+    with sessions() as blocker:
+        blocker.scalar(select(Job).where(Job.id==first.id).with_for_update())
+        claimed=claim_job(sessions,'competitor')
+        assert claimed.id==second.id

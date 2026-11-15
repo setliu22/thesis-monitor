@@ -63,9 +63,9 @@ def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
                     candidates.setdefault(key, (priority, observation(metric,start,end,kind,Decimal(str(f['val'])),[source(tag,f)])))
                 # Subtract a preceding compatible YTD period, including Q4 from FY.
                 if 150 <= duration <= 380:
-                    priors=[p for (s,e),p in latest.items() if s==start and e<end and 70<=days(e,end)-1<=110 and p['filed']<=f['filed']]
+                    priors=[p for p in facts if p['start']==start and p['end']<end and 70<=days(p['end'],end)-1<=110 and p['filed']<=f['filed']]
                     if priors:
-                        p=max(priors,key=lambda p:p['end'])
+                        p=max(priors,key=lambda p:(p['end'],p['accn']==f['accn'],p['filed'],p.get('accn','')))
                         qstart=(date.fromisoformat(p['end'])+timedelta(days=1)).isoformat()
                         key=(qstart,end,'quarter')
                         o=observation(metric,qstart,end,'quarter',Decimal(str(f['val']))-Decimal(str(p['val'])),[source(tag,f),source(tag,p)],'ytd_difference')

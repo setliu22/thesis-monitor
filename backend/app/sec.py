@@ -22,8 +22,8 @@ _last_request=0.0
 
 
 class SecClient:
-    def __init__(self, user_agent: str, transport=None, sleep=time.sleep, max_bytes=30_000_000):
-        self.user_agent=user_agent; self.transport=transport; self.sleep=sleep; self.max_bytes=max_bytes
+    def __init__(self, user_agent: str, transport=None, sleep=time.sleep, max_bytes=30_000_000, gate=None):
+        self.user_agent=user_agent; self.transport=transport; self.sleep=sleep; self.max_bytes=max_bytes; self.gate=gate
 
     def _url(self,path):
         if not valid_identity(self.user_agent):
@@ -38,9 +38,12 @@ class SecClient:
         global _last_request
         url=self._url(path)
         for attempt in range(3):
-            with _gate:
-                self.sleep(max(0,0.3-(time.monotonic()-_last_request)))
-                _last_request=time.monotonic()
+            if self.gate:
+                self.gate()
+            else:
+                with _gate:
+                    self.sleep(max(0,0.3-(time.monotonic()-_last_request)))
+                    _last_request=time.monotonic()
             try:
                 with httpx.Client(transport=self.transport,timeout=25,follow_redirects=False,headers={'User-Agent':self.user_agent,'Accept-Encoding':'gzip, deflate'}) as client:
                     with client.stream('GET',url) as response:

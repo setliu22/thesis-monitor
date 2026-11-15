@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
 from .config import settings
-from .db import SessionLocal
+from .db import SessionLocal, sec_gate
 from .models import Company
 from .sec import SecClient, valid_identity
 from .jobs import enqueue_refresh, claim_job, heartbeat, finish_job, fail_job
@@ -40,7 +40,7 @@ def process_once(sessions=SessionLocal,client=None,owner=None):
     thread=threading.Thread(target=renew,daemon=True); thread.start()
     try:
         if job.kind=='refresh':
-            ingest_company(sessions,job.company_id,client or SecClient(settings.sec_user_agent),job.id,owner)
+            ingest_company(sessions,job.company_id,client or SecClient(settings.sec_user_agent,gate=sec_gate),job.id,owner)
         elif job.kind=='analysis':
             from .analysis import run_analysis_job
             run_analysis_job(sessions,job,owner)

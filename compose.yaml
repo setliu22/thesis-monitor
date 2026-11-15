@@ -42,5 +42,11 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+  web:
+    build: ./frontend
+    ports:
+      - '127.0.0.1:8080:80'
+    depends_on:
+      - api
 volumes:
   postgres_data:

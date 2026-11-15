@@ -52,3 +52,11 @@ def test_instant_debt_and_fcf():
 def test_missing_same_period_income_does_not_create_margin():
     data=payload(Revenues=[fact(100,'2024-07-01','2025-06-30')],OperatingIncomeLoss=[fact(20,'2023-07-01','2024-06-30')])
     assert get(data,'operating_margin','2025-06-30')['value'] is None
+
+
+def test_derivation_uses_prior_version_available_to_current_filing():
+    data=payload(NetCashProvidedByUsedInOperatingActivities=[
+        fact(100,'2023-07-01','2023-09-30',filed='2023-11-01',accn='q1'),
+        fact(250,'2023-07-01','2023-12-31',filed='2024-02-01',accn='q2'),
+        fact(120,'2023-07-01','2023-09-30',filed='2024-11-01',accn='comparative')])
+    assert get(data,'operating_cash_flow','2023-12-31','quarter')['value']=='150'

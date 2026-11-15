@@ -33,3 +33,10 @@ def test_bounded_retries_and_response_size():
     assert len(calls)==3
     client=SecClient('Project Maintainer person@real-domain.org',transport=httpx.MockTransport(lambda r:httpx.Response(200,content=b'x'*100)),max_bytes=20)
     with pytest.raises(SecError): client.fetch_json('/submissions/CIK0000016058.json')
+
+
+def test_shared_gate_is_used_for_each_http_attempt():
+    ticks=[]
+    client=SecClient('Project Maintainer person@real-domain.org',transport=httpx.MockTransport(lambda r:httpx.Response(200,json={'ok':True})),gate=lambda:ticks.append('gate'))
+    assert client.fetch_json('/submissions/CIK0000016058.json')=={'ok':True}
+    assert ticks==['gate']
