@@ -81,3 +81,43 @@ def test_alerts_are_versioned_idempotent_and_ignore_old_observations(sessions):
         assert evaluate_company(s, 1) == 1
         s.commit()
         assert len(list(s.scalars(select(Alert)))) == 2
+
+
+def test_balance_sheet_rule_evaluates_instant_observation(sessions):
+    with sessions() as s:
+        s.add(
+            RuleVersion(
+                company_id=1,
+                group_key="cash",
+                version=1,
+                name="Cash floor",
+                metric="cash",
+                operator="lt",
+                threshold=300,
+                enabled=True,
+                period_kind="quarter",
+            )
+        )
+        s.add(
+            Observation(
+                company_id=1,
+                identity="cash-balance",
+                metric="cash",
+                period_end="2025-06-30",
+                kind="instant",
+                value=250,
+                unit="USD",
+                active=True,
+                payload={
+                    "metric": "cash",
+                    "value": "250",
+                    "end": "2025-06-30",
+                    "kind": "instant",
+                    "sources": [],
+                },
+            )
+        )
+        s.commit()
+        assert evaluate_company(s, 1) == 1
+        s.commit()
+        assert s.scalar(select(Alert)).evidence["value"] == "250"

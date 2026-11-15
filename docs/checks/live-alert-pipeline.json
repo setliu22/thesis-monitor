@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-11-15T13:32:48.205217+00:00",
+  "data_source": "Genuine SEC submissions and companyfacts previously fetched by the application",
+  "captured_at": "2026-11-15T13:24:29.519622+00:00",
+  "execution": "Replayed in an isolated temporary database; no user rules or alerts changed",
+  "jobs_succeeded": 2,
+  "observations": 1150,
+  "metrics": 15,
+  "alert_test": {
+    "metric": "revenue_growth",
+    "actual_value": "8.173287294278821291795020400",
+    "unit": "%",
+    "period_end": "2026-09-30",
+    "test_threshold": "100% (demonstration only; not an investment thesis)",
+    "source_accessions": [
+      "0001628280-26-066827",
+      "0001628280-26-066827"
+    ],
+    "source_urls": [
+      "https://www.sec.gov/Archives/edgar/data/16058/000162828026066827/0001628280-26-066827-index.html",
+      "https://www.sec.gov/Archives/edgar/data/16058/000162828026066827/0001628280-26-066827-index.html"
+    ],
+    "created": true,
+    "acknowledged": true,
+    "duplicate_after_replay": false
+  }
+}

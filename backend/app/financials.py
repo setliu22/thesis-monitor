@@ -17,11 +17,34 @@ TAGS = {
         "SalesRevenueNet",
     ],
     "operating_income": ["OperatingIncomeLoss"],
+    "net_income": ["NetIncomeLoss"],
+    "diluted_eps": ["EarningsPerShareDiluted"],
     "operating_cash_flow": ["NetCashProvidedByUsedInOperatingActivities"],
     "capital_expenditures": ["PaymentsToAcquirePropertyPlantAndEquipment"],
 }
+INSTANT_TAGS = {
+    "cash": ["CashAndCashEquivalentsAtCarryingValue"],
+    "assets": ["Assets"],
+    "liabilities": ["Liabilities"],
+    "equity": [
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+        "StockholdersEquity",
+    ],
+}
+INSTANT_METRICS = set(INSTANT_TAGS) | {"debt"}
+
+# CACI's consolidated cash-flow row is explicitly labeled Capital expenditures.
+# Verified in filing 0001628280-26-066827; do not generalize this broader tag.
+ISSUER_CAPEX = {"16058": ["PaymentsToAcquireProductiveAssets"]}
+
 METRICS = {
     "revenue": "USD",
+    "net_income": "USD",
+    "diluted_eps": "USD/share",
+    "cash": "USD",
+    "assets": "USD",
+    "liabilities": "USD",
+    "equity": "USD",
     "operating_income": "USD",
     "operating_cash_flow": "USD",
     "capital_expenditures": "USD",
@@ -64,8 +87,15 @@ def observation(
 def source(tag, f):
     return {k: f.get(k) for k in ("start", "end", "filed", "accn", "form")} | {
         "tag": tag,
-        "unit": "USD",
+        "unit": "USD/share" if tag == "EarningsPerShareDiluted" else "USD",
         "value": str(f["val"]),
+        **(
+            {
+                "mapping_note": "CACI labels this consolidated cash-flow row Capital expenditures."
+            }
+            if tag == "PaymentsToAcquireProductiveAssets"
+            else {}
+        ),
     }
 
 
@@ -78,12 +108,17 @@ def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
     tags = companyfacts.get("facts", {}).get("us-gaap", {})
     output = []
     series = {}
-    for metric, names in TAGS.items():
+    mappings = {metric: list(names) for metric, names in TAGS.items()}
+    cik = str(companyfacts.get("cik", "")).lstrip("0")
+    mappings["capital_expenditures"] += ISSUER_CAPEX.get(cik, [])
+    for metric, names in mappings.items():
         candidates = {}
         for priority, tag in enumerate(names):
             facts = [
                 f
-                for f in tags.get(tag, {}).get("units", {}).get("USD", [])
+                for f in tags.get(tag, {})
+                .get("units", {})
+                .get("USD/shares" if metric == "diluted_eps" else "USD", [])
                 if f.get("start")
                 and f.get("end")
                 and f.get("filed", "9999") <= cutoff
@@ -116,7 +151,7 @@ def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
                     if key not in candidates or rank > candidates[key][0]:
                         candidates[key] = (rank, o)
                 # Subtract a preceding compatible YTD period, including Q4 from FY.
-                if 150 <= duration <= 380:
+                if metric != "diluted_eps" and 150 <= duration <= 380:
                     priors = [
                         p
                         for p in facts
@@ -238,6 +273,31 @@ def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
                     else "Comparable prior-year period with same tags and positive denominator required",
                 )
             )
+    for metric, names in INSTANT_TAGS.items():
+        selected = {}
+        for priority, tag in enumerate(names):
+            for f in tags.get(tag, {}).get("units", {}).get("USD", []):
+                if (
+                    f.get("start")
+                    or f.get("filed", "9999") > cutoff
+                    or f.get("form") not in ("10-K", "10-Q", "10-K/A", "10-Q/A")
+                ):
+                    continue
+                rank = (-priority, f["filed"], f.get("accn", ""))
+                if f["end"] not in selected or rank > selected[f["end"]][0]:
+                    selected[f["end"]] = (
+                        rank,
+                        observation(
+                            metric,
+                            None,
+                            f["end"],
+                            "instant",
+                            Decimal(str(f["val"])),
+                            [source(tag, f)],
+                            "balance",
+                        ),
+                    )
+        output.extend(o for _, o in selected.values())
     # Debt is an instant balance, never a duration or annual flow.
     debt_tags = [
         "LongTermDebtCurrent",

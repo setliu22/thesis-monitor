@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, X, Pencil, ArrowUpRight } from 'lucide-react';
-import { labels, operators, format } from '../api';
+import { labels, operators, format, instantMetrics, metricUnit } from '../api';
 import type { Rule } from '../types';
 export type RuleDraft = Omit<Rule, 'id' | 'group_key' | 'version'>;
 export default function RuleEditor({
@@ -73,11 +73,8 @@ export default function RuleEditor({
               <strong>{r.name}</strong>
               <p>
                 {labels[r.metric]} {operators[r.operator]}{' '}
-                {format(
-                  r.threshold,
-                  r.metric.includes('growth') || r.metric === 'operating_margin' ? '%' : 'USD',
-                )}{' '}
-                · {r.metric === 'debt' ? 'Instant balance' : r.period_kind} · v{r.version}
+                {format(r.threshold, metricUnit(r.metric))} ·{' '}
+                {instantMetrics.has(r.metric) ? 'Instant balance' : r.period_kind} · v{r.version}
               </p>
             </div>
             <span className="quiet-label">{r.enabled ? 'Active' : 'Paused'}</span>
@@ -148,10 +145,7 @@ export default function RuleEditor({
               </select>
             </label>
             <label>
-              Threshold (
-              {draft.metric.includes('growth') || draft.metric === 'operating_margin'
-                ? 'percent'
-                : 'USD'}
+              Threshold ({metricUnit(draft.metric) === '%' ? 'percent' : metricUnit(draft.metric)}
               )
               <input
                 type="number"
@@ -164,7 +158,7 @@ export default function RuleEditor({
             <label>
               Reporting period
               <select
-                disabled={draft.metric === 'debt'}
+                disabled={instantMetrics.has(draft.metric)}
                 value={draft.period_kind}
                 onChange={(e) => setDraft({ ...draft, period_kind: e.target.value })}
               >

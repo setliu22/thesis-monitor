@@ -1,14 +1,19 @@
 import { useState } from 'react';
 import { ArrowUpRight, Database, TrendingUp, FileText } from 'lucide-react';
-import { date, format, labels } from '../api';
+import { date, format, labels, instantMetrics } from '../api';
+import FinancialHistory from './FinancialHistory';
 import type { Detail, Observation } from '../types';
-export function Trend({ points }: { points: Observation[] }) {
+export function Trend({ points, metric = 'revenue' }: { points: Observation[]; metric?: string }) {
   const valid = points.filter((p) => p.value !== null).slice(-8);
   if (valid.length < 2)
     return <div className="chart-empty">Sync at least two comparable periods to see a trend.</div>;
   const values = valid.map((p) => Number(p.value));
-  const low = Math.min(...values) * 0.95,
-    high = Math.max(...values) * 1.05;
+  const low =
+      Math.min(...values) -
+      (Math.max(...values) - Math.min(...values) || Math.abs(values[0]) || 1) * 0.1,
+    high =
+      Math.max(...values) +
+      (Math.max(...values) - Math.min(...values) || Math.abs(values[0]) || 1) * 0.1;
   const range = high - low || 1;
   const coords = values.map((v, i) => [
     (i / (values.length - 1)) * 600,
@@ -17,7 +22,11 @@ export function Trend({ points }: { points: Observation[] }) {
   const path = coords.map(([x, y], i) => (i ? 'L' : 'M') + x + ',' + y).join(' ');
   return (
     <div className="trend">
-      <svg viewBox="-12 0 624 190" role="img" aria-label="Revenue trend by reporting period">
+      <svg
+        viewBox="-12 0 624 190"
+        role="img"
+        aria-label={labels[metric] + ' trend by reporting period'}
+      >
         <defs>
           <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#a6bd77" stopOpacity=".35" />
@@ -32,7 +41,7 @@ export function Trend({ points }: { points: Observation[] }) {
         {coords.map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke="#456643" strokeWidth="2">
             <title>
-              {date(valid[i].end)}: {format(valid[i].value)}
+              {date(valid[i].end)}: {format(valid[i].value, valid[i].unit)}
             </title>
           </circle>
         ))}
@@ -58,9 +67,29 @@ export default function CompanyDetail({
   settings: () => void;
 }) {
   const [evidence, setEvidence] = useState<string | null>(null);
+  const [chartMetric, setChartMetric] = useState('revenue');
   const selected = detail.observations.filter((o) => o.kind === kind);
-  const latest = (metric: string) => selected.filter((o) => o.metric === metric).at(-1);
-  const cards = ['revenue', 'revenue_growth', 'operating_margin', 'free_cash_flow'];
+  const latest = (metric: string) =>
+    (instantMetrics.has(metric)
+      ? detail.observations.filter((o) => o.kind === 'instant')
+      : selected
+    )
+      .filter((o) => o.metric === metric)
+      .at(-1);
+  const cards = [
+    'revenue',
+    'revenue_growth',
+    'operating_margin',
+    'net_income',
+    'diluted_eps',
+    'operating_cash_flow',
+    'capital_expenditures',
+    'free_cash_flow',
+    'cash',
+    'debt',
+    'assets',
+    'equity',
+  ];
   const end = latest('revenue')?.end;
   return (
     <>
@@ -89,6 +118,25 @@ export default function CompanyDetail({
           </button>
         </div>
       </div>
+      {end && (
+        <div className="data-summary">
+          <span>
+            {
+              new Set(detail.observations.filter((o) => o.kind === 'quarter').map((o) => o.end))
+                .size
+            }{' '}
+            quarters
+          </span>
+          <span>
+            {new Set(detail.observations.filter((o) => o.kind === 'annual').map((o) => o.end)).size}{' '}
+            fiscal years
+          </span>
+          <span>{detail.filings.length} recent filings</span>
+          <a href="#financial-history" className="text-button">
+            View financial history ↓
+          </a>
+        </div>
+      )}
       <div className="metric-grid">
         {cards.map((key, i) => {
           const o = latest(key);
@@ -108,7 +156,11 @@ export default function CompanyDetail({
                 <span className="metric-note">Year over year</span>
               ) : (
                 <span className="metric-note">
-                  {kind === 'quarter' ? 'Discrete quarter' : 'Full fiscal year'}
+                  {instantMetrics.has(key)
+                    ? 'Balance at reporting date'
+                    : kind === 'quarter'
+                      ? 'Discrete quarter'
+                      : 'Full fiscal year'}
                 </span>
               )}
             </button>
@@ -137,7 +189,9 @@ export default function CompanyDetail({
                       {date(s.start)} – {date(s.end)} · Filed {date(s.filed)}
                     </p>
                   </div>
-                  <strong>{format(s.value)}</strong>
+                  <strong>
+                    {format(s.value, evidence === 'diluted_eps' ? 'USD/share' : 'USD')}
+                  </strong>
                   {s.url && (
                     <a
                       href={s.url}
@@ -191,19 +245,33 @@ export default function CompanyDetail({
         <section className="panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">REVENUE</span>
-              <h2>Revenue history</h2>
+              <span className="eyebrow">METRIC HISTORY</span>
+              <h2>{labels[chartMetric]} history</h2>
             </div>
-            <span className="badge neutral">
-              {kind === 'quarter' ? 'Quarterly' : 'Annual'} · USD
-            </span>
+            <label className="chart-selector">
+              Metric
+              <select
+                aria-label="Chart metric"
+                value={chartMetric}
+                onChange={(e) => setChartMetric(e.target.value)}
+              >
+                {Object.entries(labels)
+                  .filter(([key]) => !instantMetrics.has(key))
+                  .map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            </label>
           </div>
-          <Trend points={selected.filter((o) => o.metric === 'revenue')} />
+          <Trend points={selected.filter((o) => o.metric === chartMetric)} metric={chartMetric} />
           <p className="fine-print">
             Hover a point for its value. Click a metric above to inspect its source facts.
           </p>
         </section>
       )}
+      <FinancialHistory observations={detail.observations} kind={kind} />
     </>
   );
 }

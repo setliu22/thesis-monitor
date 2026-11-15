@@ -34,7 +34,7 @@ API reference: [http://localhost:8000/docs](http://localhost:8000/docs). Health:
 ## What works
 
 - Add SEC-listed US tickers, starting with CACI; switch the watchlist on desktop or mobile.
-- Save versioned theses and rules for revenue, growth, operating margin, cash flow, capex, and supported long-term-debt balances.
+- Save versioned theses and rules for revenue, growth, operating margin, cash flow, capex, net income, diluted EPS, cash, assets, liabilities, equity, and supported long-term-debt balances.
 - Inspect quarterly/annual history, source tags, raw input values, periods, filing accessions, and derivations.
 - Queue refreshes outside HTTP requests; inspect job status, attempts, failures, and data freshness.
 - Evaluate saved rules immediately; acknowledge alerts without deleting their evidence.
@@ -107,6 +107,7 @@ This is a single-user local app. Default database credentials are local developm
 - [Demo walkthrough](docs/demo.md)
 - [FDE interview guide](docs/interview-guide.md)
 - [Financial and operational limitations](docs/limitations.md)
+- [Feature audit and remaining work](docs/feature-audit.md)
 - [Verification record](docs/verification.md)
 - [Implementation decisions and review](docs/decisions-and-review.md)
 

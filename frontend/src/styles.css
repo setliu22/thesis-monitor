@@ -1520,3 +1520,130 @@ td {
     font-size: 8px;
   }
 }
+.data-summary {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: -5px 0 20px;
+  font-size: 11px;
+  color: #7d8c70;
+}
+.data-summary > a {
+  margin-left: auto;
+}
+.history-count,
+.chart-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.history-count select,
+.chart-selector select {
+  margin: 0;
+  font-size: 11px;
+  padding: 7px 9px;
+  width: auto;
+  max-width: 190px;
+}
+.financial-table {
+  font-variant-numeric: tabular-nums;
+}
+.financial-table thead th {
+  text-align: right;
+  font-size: 10px;
+  padding: 13px 16px;
+}
+.financial-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  text-align: left;
+  z-index: 1;
+  min-width: 175px;
+  border-right: 1px solid #edf0e6;
+}
+.financial-table tbody th {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 15px 12px;
+  color: #657853;
+}
+.financial-table td {
+  text-align: right;
+  padding: 12px 16px;
+  min-width: 110px;
+}
+.financial-value {
+  border: 0;
+  background: none;
+  padding: 4px;
+  color: #49653a;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.financial-value:hover {
+  text-decoration: underline;
+}
+.financial-value sup {
+  font-size: 8px;
+  margin-left: 2px;
+}
+.unavailable {
+  color: #adb5a1;
+}
+.balance-heading {
+  margin-top: 30px;
+}
+.history-evidence {
+  padding: 18px;
+  border: 1px solid #dce6cd;
+  border-radius: 6px;
+  background: #f8faf3;
+  margin-top: 20px;
+}
+.history-evidence > p {
+  font-size: 12px;
+  margin-top: 12px;
+}
+.financial-table-wrap {
+  max-height: 520px;
+  overflow: auto;
+}
+.financial-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f6f8f1;
+  z-index: 2;
+}
+.financial-table thead th:first-child {
+  z-index: 3;
+  background: #f6f8f1;
+}
+@media (max-width: 720px) {
+  .data-summary {
+    gap: 10px;
+    font-size: 9px;
+  }
+  .data-summary > a {
+    margin: 0;
+  }
+  .financial-table th:first-child {
+    min-width: 135px;
+  }
+  .financial-table td {
+    min-width: 100px;
+  }
+  .history-count select {
+    max-width: 105px;
+  }
+  .chart-selector select {
+    max-width: 150px;
+  }
+  .section-heading:has(.chart-selector) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

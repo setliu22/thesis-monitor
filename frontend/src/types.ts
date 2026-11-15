@@ -9,6 +9,7 @@ export type Company = {
   stale?: boolean;
 };
 export type Source = {
+  mapping_note?: string;
   tag: string;
   value: string;
   filed: string;

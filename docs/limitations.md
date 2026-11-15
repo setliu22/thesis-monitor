@@ -1,7 +1,7 @@
 # Limitations
 
 - Source scope is public SEC submission metadata, periodic-report US-GAAP XBRL facts, and optional filing text. The app has no stock-price feed, brokerage data, news, analyst estimates, portfolio P&L, or trading features.
-- CACI is the starter company; detailed issuer-specific tag coverage still requires real-data review. An SEC contact identity is required before live ingestion. Network access may be blocked independently of that identity.
+- CACI is the starter company. Its capex mapping was checked against the current consolidated cash-flow statement; historical definitions still require manual review when accounting changes. An SEC contact identity is required before live ingestion. Network access may be blocked independently of that identity.
 - Submissions ingestion uses the endpoint's recent filings section. It does not recursively backfill all historical submissions archives. Companyfacts supplies the financial history available from that endpoint.
 - US-GAAP mappings are intentionally explicit and limited. IFRS, dimensional segment metrics, custom backlog tags, acquisitions adjustments and issuer-specific non-GAAP measures are unsupported in numeric rules.
 - Quarter selection uses duration windows. Nonstandard fiscal transitions, unusual accounting calendars, inconsistent tags, reclassifications and restatements can require manual review. Matching tags/dates do not independently establish identical accounting policy.

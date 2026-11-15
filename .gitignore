@@ -9,3 +9,5 @@ work/
 .superpowers/
 *.db
 .DS_Store
+
+*.tsbuildinfo

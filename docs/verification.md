@@ -4,8 +4,8 @@ Verified locally on November 14, 2026 (America/New_York). This record distinguis
 
 ## Executed
 
-- **35 backend tests passed** against a separate PostgreSQL 16.4 database: storage, financial normalization, SEC transport behavior, durable jobs, replay, lease recovery, actual SKIP LOCKED behavior, rule evaluation, API validation, local-origin protection, optional analysis boundary, and migration upgrade tests.
-- **4 frontend workflow tests passed**: empty-data/setup state, thesis save, failed rule-save draft preservation, and idle discovery of scheduled alerts.
+- **39 backend tests passed** against a separate PostgreSQL 16.4 database: storage, financial normalization, SEC transport behavior, durable jobs, replay, lease recovery, actual SKIP LOCKED behavior, rule evaluation, API validation, local-origin protection, optional analysis boundary, and migration upgrade tests.
+- **5 frontend workflow tests passed**: empty-data/setup state, thesis save, failed rule-save draft preservation, and idle discovery of scheduled alerts.
 - TypeScript check and Vite production build.
 - PostgreSQL server restart followed by an actual API read: saved demo thesis and paused rule remained persisted.
 - Alembic initial migration and subsequent schema upgrade on a genuine PostgreSQL database.
@@ -21,3 +21,10 @@ Verified locally on November 14, 2026 (America/New_York). This record distinguis
 The installed Starlette version emits one deprecation warning about its httpx TestClient integration. Tests pass; this warning does not affect the application HTTP client. A future dependency update should revisit the test transport choice.
 
 Independent review found three issues; all were reproduced and fixed with regression tests. See [decisions and review](decisions-and-review.md). No minor findings were deferred.
+
+## November 15 feature audit and expanded data view
+
+- Added financial-history and balance-sheet tables, selectable charts and 12 summary metrics. Current CACI normalization yields 1,150 observations across 15 metric names.
+- Verified CACI capital expenditures against filing `0001628280-26-066827`; issuer-specific mapping uses PaymentsToAcquireProductiveAssets. Quarter ended September 30, 2026: operating cash flow $161,314,000 less capex $11,359,000 = free cash flow $149,955,000 under the app's stated definition.
+- Tested numeric alert creation, acknowledgment and deduplication by replaying genuine SEC snapshots into an isolated temporary database. No user rules or alerts were changed. See `checks/live-alert-pipeline.json`.
+- See `feature-audit.md` for an explicit comparison against the requested workflow. Narrative LLM analysis remains unconfigured and on demand; automated narrative monitoring has not been delivered.

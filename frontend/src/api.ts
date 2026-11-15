@@ -15,6 +15,12 @@ export const labels: Record<string, string> = {
   revenue: 'Revenue',
   revenue_growth: 'Revenue growth',
   operating_income: 'Operating income',
+  net_income: 'Net income',
+  diluted_eps: 'Diluted EPS',
+  cash: 'Cash & equivalents',
+  assets: 'Total assets',
+  liabilities: 'Total liabilities',
+  equity: 'Equity',
   operating_margin: 'Operating margin',
   operating_cash_flow: 'Operating cash flow',
   cash_flow_growth: 'Cash flow growth',
@@ -33,6 +39,7 @@ export function format(value: string | null | undefined, unit = 'USD') {
   const n = Number(value);
   if (!Number.isFinite(n)) return '—';
   if (unit === '%') return n.toFixed(1) + '%';
+  if (unit === 'USD/share') return '$' + n.toFixed(2);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -49,3 +56,11 @@ export function date(value: string | null | undefined) {
       })
     : 'Not synced yet';
 }
+
+export const instantMetrics = new Set(['debt', 'cash', 'assets', 'liabilities', 'equity']);
+export const metricUnit = (metric: string) =>
+  metric.includes('growth') || metric === 'operating_margin'
+    ? '%'
+    : metric === 'diluted_eps'
+      ? 'USD/share'
+      : 'USD';

@@ -154,3 +154,73 @@ def test_later_reported_quarter_replaces_older_ytd_derivation():
     assert selected["value"] == "175"
     assert selected["derivation"] == "reported"
     assert selected["sources"][0]["accn"] == "restatement"
+
+
+def test_caci_capex_mapping_uses_filing_verified_productive_assets_tag():
+    data = payload(
+        NetCashProvidedByUsedInOperatingActivities=[
+            fact(161314000, "2026-07-01", "2026-09-30", filed="2026-10-22")
+        ],
+        PaymentsToAcquireProductiveAssets=[
+            fact(11359000, "2026-07-01", "2026-09-30", filed="2026-10-22")
+        ],
+    )
+    data["cik"] = 16058
+    capex = get(
+        data, "capital_expenditures", "2026-09-30", "quarter", as_of="2026-11-15"
+    )
+    assert capex["value"] == "11359000"
+    assert capex["sources"][0]["tag"] == "PaymentsToAcquireProductiveAssets"
+    assert (
+        get(data, "free_cash_flow", "2026-09-30", "quarter", as_of="2026-11-15")[
+            "value"
+        ]
+        == "149955000"
+    )
+    data["cik"] = 1
+    assert not any(o["metric"] == "capital_expenditures" for o in normalize(data))
+
+
+def test_additional_income_eps_and_balance_sheet_preserve_units_and_periods():
+    data = payload(NetIncomeLoss=[fact(80, "2024-07-01", "2025-06-30")])
+    data["facts"]["us-gaap"]["EarningsPerShareDiluted"] = {
+        "units": {
+            "USD/shares": [
+                fact(5, "2024-07-01", "2024-09-30"),
+                fact(11, "2024-07-01", "2024-12-31"),
+            ]
+        }
+    }
+    data["facts"]["us-gaap"]["CashAndCashEquivalentsAtCarryingValue"] = {
+        "units": {
+            "USD": [
+                dict(
+                    val=250, end="2025-06-30", filed="2025-08-01", accn="a", form="10-K"
+                )
+            ]
+        }
+    }
+    assert get(data, "net_income", "2025-06-30")["value"] == "80"
+    assert get(data, "cash", "2025-06-30", "instant")["value"] == "250"
+    eps = get(data, "diluted_eps", "2024-09-30", "quarter")
+    assert eps["value"] == "5" and eps["unit"] == "USD/share"
+    assert not any(
+        o["metric"] == "diluted_eps" and o["end"] == "2024-12-31"
+        for o in normalize(data)
+    )
+
+
+def test_equity_includes_reported_noncontrolling_interest_when_available():
+    data = payload()
+    data["facts"]["us-gaap"][
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"
+    ] = {
+        "units": {
+            "USD": [
+                dict(
+                    val=420, end="2025-06-30", filed="2025-08-01", accn="a", form="10-K"
+                )
+            ]
+        }
+    }
+    assert get(data, "equity", "2025-06-30", "instant")["value"] == "420"

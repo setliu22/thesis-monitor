@@ -1,4 +1,5 @@
 from decimal import Decimal
+from .financials import INSTANT_METRICS
 from sqlalchemy import select
 from .models import RuleVersion, Observation, Alert, Company
 
@@ -33,7 +34,7 @@ def evaluate_company(session, company_id):
     for rule in latest_rules(session, company_id):
         if not rule.enabled:
             continue
-        kind = "instant" if rule.metric == "debt" else rule.period_kind
+        kind = "instant" if rule.metric in INSTANT_METRICS else rule.period_kind
         observation = session.scalar(
             select(Observation)
             .where(
