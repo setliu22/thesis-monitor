@@ -18,5 +18,5 @@ def sec_gate():
     holding the shared gate. Scope is this database, not other applications.
     """
     with engine.begin() as connection:
-        connection.execute(text('SELECT pg_advisory_xact_lock(7331842)'))
-        connection.execute(text('SELECT pg_sleep(0.3)'))
+        connection.execute(text("SELECT pg_advisory_xact_lock(7331842)"))
+        connection.execute(text("SELECT pg_sleep(0.3)"))

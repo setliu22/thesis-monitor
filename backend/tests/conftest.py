@@ -7,12 +7,13 @@ from app.models import Base, Company
 
 @pytest.fixture
 def sessions(tmp_path):
-    url=os.getenv('TEST_DATABASE_URL',f'sqlite:///{tmp_path}/test.db')
-    engine=create_engine(url)
+    url = os.getenv("TEST_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
+    engine = create_engine(url)
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
-    factory=sessionmaker(engine,expire_on_commit=False)
+    factory = sessionmaker(engine, expire_on_commit=False)
     with factory() as s:
-        s.add(Company(ticker='CACI',name='CACI International',cik='0000016058')); s.commit()
+        s.add(Company(ticker="CACI", name="CACI International", cik="0000016058"))
+        s.commit()
     yield factory
     engine.dispose()

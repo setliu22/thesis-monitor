@@ -108,5 +108,6 @@ This is a single-user local app. Default database credentials are local developm
 - [FDE interview guide](docs/interview-guide.md)
 - [Financial and operational limitations](docs/limitations.md)
 - [Verification record](docs/verification.md)
+- [Implementation decisions and review](docs/decisions-and-review.md)
 
 Primary sources: [SEC public APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces), [SEC access guidance](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).

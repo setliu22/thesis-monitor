@@ -1,6 +1,16 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from sqlalchemy import String, Text, Integer, Boolean, Numeric, JSON, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import (
+    String,
+    Text,
+    Integer,
+    Boolean,
+    Numeric,
+    JSON,
+    ForeignKey,
+    UniqueConstraint,
+    Index,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -19,42 +29,42 @@ class Entity(Base):
 
 
 class Company(Entity):
-    __tablename__ = 'companies'
+    __tablename__ = "companies"
     ticker: Mapped[str] = mapped_column(String(15), unique=True)
     name: Mapped[str] = mapped_column(String(250))
     cik: Mapped[str] = mapped_column(String(10))
     last_success: Mapped[str | None] = mapped_column(String(40))
     last_attempt: Mapped[str | None] = mapped_column(String(40))
-    data_status: Mapped[str] = mapped_column(String(30), default='empty')
+    data_status: Mapped[str] = mapped_column(String(30), default="empty")
     last_error: Mapped[str | None] = mapped_column(Text)
 
 
 class ThesisVersion(Entity):
-    __tablename__ = 'theses'
-    __table_args__ = (UniqueConstraint('company_id', 'version'),)
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
+    __tablename__ = "theses"
+    __table_args__ = (UniqueConstraint("company_id", "version"),)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     version: Mapped[int] = mapped_column(Integer)
     body: Mapped[str] = mapped_column(Text)
 
 
 class RuleVersion(Entity):
-    __tablename__ = 'rules'
-    __table_args__ = (UniqueConstraint('company_id', 'group_key', 'version'),)
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
+    __tablename__ = "rules"
+    __table_args__ = (UniqueConstraint("company_id", "group_key", "version"),)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     group_key: Mapped[str] = mapped_column(String(40))
     version: Mapped[int] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String(160))
     metric: Mapped[str] = mapped_column(String(50))
     operator: Mapped[str] = mapped_column(String(10))
-    period_kind: Mapped[str] = mapped_column(String(10), default='quarter')
+    period_kind: Mapped[str] = mapped_column(String(10), default="quarter")
     threshold: Mapped[Decimal] = mapped_column(Numeric(30, 8))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class Snapshot(Entity):
-    __tablename__ = 'snapshots'
-    __table_args__ = (UniqueConstraint('company_id', 'kind', 'digest'),)
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
+    __tablename__ = "snapshots"
+    __table_args__ = (UniqueConstraint("company_id", "kind", "digest"),)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     kind: Mapped[str] = mapped_column(String(30))
     digest: Mapped[str] = mapped_column(String(64))
     source_url: Mapped[str] = mapped_column(Text)
@@ -62,27 +72,32 @@ class Snapshot(Entity):
 
 
 class Filing(Entity):
-    __tablename__ = 'filings'
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
-    accession: Mapped[str] = mapped_column(String(30), unique=True)
+    __tablename__ = "filings"
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id", "accession", name="uq_filings_company_accession"
+        ),
+    )
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    accession: Mapped[str] = mapped_column(String(30))
     form: Mapped[str] = mapped_column(String(10))
     filed: Mapped[str] = mapped_column(String(10))
-    report_date: Mapped[str] = mapped_column(String(10), default='')
+    report_date: Mapped[str] = mapped_column(String(10), default="")
     document: Mapped[str] = mapped_column(String(250))
 
 
 class Fact(Entity):
-    __tablename__ = 'facts'
-    __table_args__ = (UniqueConstraint('company_id', 'identity'),)
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
+    __tablename__ = "facts"
+    __table_args__ = (UniqueConstraint("company_id", "identity"),)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     identity: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict] = mapped_column(JSON)
 
 
 class Observation(Entity):
-    __tablename__ = 'observations'
-    __table_args__ = (UniqueConstraint('company_id', 'identity'),)
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
+    __tablename__ = "observations"
+    __table_args__ = (UniqueConstraint("company_id", "identity"),)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     identity: Mapped[str] = mapped_column(String(64))
     metric: Mapped[str] = mapped_column(String(50), index=True)
     period_end: Mapped[str] = mapped_column(String(10))
@@ -94,10 +109,10 @@ class Observation(Entity):
 
 
 class Job(Entity):
-    __tablename__ = 'jobs'
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
-    kind: Mapped[str] = mapped_column(String(20), default='refresh')
-    status: Mapped[str] = mapped_column(String(20), default='queued', index=True)
+    __tablename__ = "jobs"
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20), default="refresh")
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     available_at: Mapped[str] = mapped_column(String(40), default=now)
     lease_until: Mapped[str | None] = mapped_column(String(40))
@@ -108,20 +123,20 @@ class Job(Entity):
 
 
 class Analysis(Entity):
-    __tablename__ = 'analyses'
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
-    filing_id: Mapped[int] = mapped_column(ForeignKey('filings.id'))
-    thesis_id: Mapped[int] = mapped_column(ForeignKey('theses.id'))
+    __tablename__ = "analyses"
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    filing_id: Mapped[int] = mapped_column(ForeignKey("filings.id"))
+    thesis_id: Mapped[int] = mapped_column(ForeignKey("theses.id"))
     model: Mapped[str] = mapped_column(String(100))
     prompt_version: Mapped[str] = mapped_column(String(20))
     result: Mapped[dict] = mapped_column(JSON)
 
 
 class Alert(Entity):
-    __tablename__ = 'alerts'
-    __table_args__ = (UniqueConstraint('rule_id', 'observation_key'),)
-    company_id: Mapped[int] = mapped_column(ForeignKey('companies.id'), index=True)
-    rule_id: Mapped[int] = mapped_column(ForeignKey('rules.id'))
+    __tablename__ = "alerts"
+    __table_args__ = (UniqueConstraint("rule_id", "observation_key"),)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    rule_id: Mapped[int] = mapped_column(ForeignKey("rules.id"))
     observation_key: Mapped[str] = mapped_column(String(64))
     title: Mapped[str] = mapped_column(String(250))
     evidence: Mapped[dict] = mapped_column(JSON)
@@ -129,8 +144,9 @@ class Alert(Entity):
 
 
 class AlertEvent(Entity):
-    __tablename__ = 'alert_events'
-    alert_id: Mapped[int] = mapped_column(ForeignKey('alerts.id'))
+    __tablename__ = "alert_events"
+    alert_id: Mapped[int] = mapped_column(ForeignKey("alerts.id"))
     kind: Mapped[str] = mapped_column(String(30))
 
-Index('ix_jobs_due', Job.status, Job.available_at)
+
+Index("ix_jobs_due", Job.status, Job.available_at)
