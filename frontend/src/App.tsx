@@ -139,23 +139,21 @@ export default function App() {
     link.download = `${detail.company.ticker}-thesis-brief.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setMessage('Research brief exported with source evidence.');
+    setMessage('Research brief exported.');
   }
   const unread = detail?.alerts.filter((a) => !a.acknowledged_at).length ?? 0;
   const thesisPanel = detail && (
     <section className="panel thesis-panel">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">01 / YOUR PERSPECTIVE</span>
-          <h2>The reason you own it.</h2>
+          <span className="eyebrow">THESIS</span>
+          <h2>Investment thesis</h2>
         </div>
         <span className="badge neutral">
           {detail.thesis ? 'Version ' + detail.thesis.version : 'No thesis saved'}
         </span>
       </div>
-      <p className="muted">
-        Write what needs to stay true. The monitor helps you notice when it changes.
-      </p>
+      <p className="muted">Describe why you own this stock and what would change your view.</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -298,11 +296,11 @@ export default function App() {
         <div className="sidebar-bottom">
           <div className="source-note">
             <ShieldCheck size={20} />
-            <strong>Built on public evidence.</strong>
+            <strong>SEC EDGAR data</strong>
             <p>
               Direct from SEC EDGAR.
               <br />
-              Every number has a source.
+              Source filings linked.
             </p>
             <a
               href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
@@ -405,25 +403,25 @@ export default function App() {
           <div className="page-heading">
             <div>
               <div className="eyebrow">
-                <span className="small-line" /> THE INVESTMENT THESIS MONITOR
+                <span className="small-line" /> INVESTMENT MONITOR
               </div>
               <h1>
                 {view === 'Overview'
-                  ? 'Your conviction. The evidence.'
+                  ? 'Watchlist overview'
                   : view === 'Thesis & rules'
-                    ? 'Define what matters.'
+                    ? 'Thesis & rules'
                     : view === 'Filings'
-                      ? 'Go straight to the source.'
-                      : 'Follow the signal.'}
+                      ? 'SEC filings'
+                      : 'Alerts & sync history'}
               </h1>
               <p>
                 {view === 'Overview'
-                  ? 'Stay close to the businesses you own. Know when the story changes.'
+                  ? 'Review financial results, filings, and alerts for your watchlist.'
                   : view === 'Thesis & rules'
-                    ? 'Turn your investment perspective into a repeatable monitoring process.'
+                    ? 'Save your investment thesis and set financial thresholds to monitor.'
                     : view === 'Filings'
-                      ? 'Company disclosures, linked directly to their original SEC records.'
-                      : 'Review thesis alerts and the work happening behind your watchlist.'}
+                      ? 'View company filings on SEC EDGAR.'
+                      : 'Review triggered rules and data refresh jobs.'}
               </p>
             </div>
             <div className="page-actions">
@@ -514,10 +512,10 @@ export default function App() {
                     <div className="overview-lower">
                       <section className="panel thesis-preview">
                         <span className="eyebrow">YOUR INVESTMENT THESIS</span>
-                        <h2>A business. A point of view.</h2>
+                        <h2>Investment thesis</h2>
                         <p>
                           {detail.thesis?.body ||
-                            'What makes this company worth owning? Write your thesis, then decide which changes deserve your attention.'}
+                            'No thesis saved. Add your reasons for owning this stock.'}
                         </p>
                         <div className="section-heading">
                           <span className="quiet-label">
@@ -539,7 +537,7 @@ export default function App() {
                     <RuleEditor rules={detail.rules} busy={busy} save={saveRule} />
                     <div className="evaluate-bar">
                       <div>
-                        <strong>Put your rules to work.</strong>
+                        <strong>Evaluate saved rules</strong>
                         <p>Evaluate saved rules against the latest stored reporting period.</p>
                       </div>
                       <button
@@ -649,8 +647,8 @@ export default function App() {
                     <section className="panel">
                       <div className="section-heading">
                         <div>
-                          <span className="eyebrow">OPTIONAL / MODEL OBSERVATIONS</span>
-                          <h2>Read through your thesis.</h2>
+                          <span className="eyebrow">OPTIONAL ANALYSIS</span>
+                          <h2>Filing analysis</h2>
                         </div>
                         <span className="badge neutral">
                           {settings?.llm_configured ? 'Configured' : 'API key needed'}
@@ -704,10 +702,9 @@ export default function App() {
           )}
           <footer className="page-footer">
             <span>
-              <Target size={14} /> thesis. <span className="footer-divider" /> Keep your conviction
-              accountable.
+              <Target size={14} /> thesis. <span className="footer-divider" /> Investment monitor
             </span>
-            <span>Public disclosures · Personal perspective</span>
+            <span>Source: SEC EDGAR</span>
           </footer>
         </main>
       </div>
@@ -731,7 +728,7 @@ export default function App() {
                 <X size={20} />
               </button>
             </div>
-            <h2 id="settings-title">Public data. Direct access.</h2>
+            <h2 id="settings-title">SEC data settings</h2>
             <p>
               SEC EDGAR provides the filings and financial facts. Automated requests need a contact
               identity.

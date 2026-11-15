@@ -47,15 +47,15 @@ export default function RuleEditor({
     <section className="panel">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">02 / MONITORING</span>
-          <h2>Make your thesis measurable.</h2>
+          <span className="eyebrow">RULES</span>
+          <h2>Monitoring rules</h2>
         </div>
         <button className="button secondary" onClick={() => open()}>
           <Plus size={15} />
           Add rule
         </button>
       </div>
-      <p className="muted">Thresholds are your assumptions. Every change creates a new version.</p>
+      <p className="muted">Choose a metric, reporting period, and threshold for each rule.</p>
       {rules.length === 0 && editing === undefined && (
         <div className="inline-empty">
           <p>No monitoring rules yet.</p>

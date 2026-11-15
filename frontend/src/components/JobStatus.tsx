@@ -6,8 +6,8 @@ export default function JobStatus({ jobs }: { jobs: Job[] }) {
     <section className="panel">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">PIPELINE HEALTH</span>
-          <h2>Every sync, accounted for.</h2>
+          <span className="eyebrow">DATA REFRESHES</span>
+          <h2>Sync history</h2>
         </div>
         <Clock3 size={21} />
       </div>

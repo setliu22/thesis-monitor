@@ -73,7 +73,7 @@ export default function CompanyDetail({
               <span className="badge neutral">US EQUITY</span>
             </div>
             <p>
-              {detail.company.ticker} <span>·</span> SEC filing intelligence <span>·</span> USD
+              {detail.company.ticker} <span>·</span> SEC filings <span>·</span> USD
             </p>
           </div>
         </div>
@@ -174,10 +174,10 @@ export default function CompanyDetail({
             </i>
           </div>
           <div>
-            <span className="eyebrow">REAL FILINGS. YOUR THESIS.</span>
-            <h2>Connect to the source.</h2>
+            <span className="eyebrow">SEC DATA</span>
+            <h2>No SEC data yet</h2>
             <p>
-              Your watchlist is ready.{' '}
+              {' '}
               {secConfigured
                 ? 'Refresh SEC data to bring in financial history and the latest filings.'
                 : 'Add your SEC contact identity to start tracking financial changes from public company filings.'}
@@ -191,8 +191,8 @@ export default function CompanyDetail({
         <section className="panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">FINANCIAL TRAJECTORY</span>
-              <h2>Revenue, over time.</h2>
+              <span className="eyebrow">REVENUE</span>
+              <h2>Revenue history</h2>
             </div>
             <span className="badge neutral">
               {kind === 'quarter' ? 'Quarterly' : 'Annual'} · USD

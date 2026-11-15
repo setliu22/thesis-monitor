@@ -43,10 +43,8 @@ function backend() {
 test('empty SEC data shows unavailable values and setup action', async () => {
   backend();
   render(<App />);
-  expect(
-    await screen.findByRole('heading', { name: 'Your conviction. The evidence.' }),
-  ).toBeInTheDocument();
-  expect(await screen.findByText('Connect to the source.')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Watchlist overview' })).toBeInTheDocument();
+  expect(await screen.findByText('No SEC data yet')).toBeInTheDocument();
   expect(screen.queryByText('$8.63B')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /Data settings/i }));
   expect(screen.getByText(/SEC_USER_AGENT=/)).toBeInTheDocument();
@@ -54,7 +52,7 @@ test('empty SEC data shows unavailable values and setup action', async () => {
 test('thesis editor submits the written thesis', async () => {
   backend();
   render(<App />);
-  await screen.findByText('Connect to the source.');
+  await screen.findByText('No SEC data yet');
   fireEvent.click(screen.getByRole('button', { name: 'Thesis & rules' }));
   const input = screen.getByLabelText('Your investment thesis');
   fireEvent.change(input, { target: { value: 'Cash generation supports the thesis.' } });
@@ -82,7 +80,7 @@ test('failed rule save keeps the editable form open', async () => {
     ),
   );
   render(<App />);
-  await screen.findByText('Connect to the source.');
+  await screen.findByText('No SEC data yet');
   fireEvent.click(screen.getByRole('button', { name: 'Thesis & rules' }));
   fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save rule' }));
@@ -98,7 +96,7 @@ test('idle dashboard discovers new alerts on its background refresh', async () =
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(screen.getByText('Connect to the source.')).toBeInTheDocument();
+    expect(screen.getByText('No SEC data yet')).toBeInTheDocument();
     const updated = {
       ...detail,
       alerts: [

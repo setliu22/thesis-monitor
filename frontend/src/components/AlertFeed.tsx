@@ -15,9 +15,9 @@ export default function AlertFeed({
       <div className="section-heading">
         <div>
           <span className="eyebrow">
-            SIGNALS / {alerts.filter((a) => !a.acknowledged_at).length} UNREAD
+            ALERTS / {alerts.filter((a) => !a.acknowledged_at).length} UNREAD
           </span>
-          <h2>What needs your attention.</h2>
+          <h2>Alerts</h2>
         </div>
         <Bell size={20} />
       </div>
@@ -33,9 +33,7 @@ export default function AlertFeed({
         alerts.map((a) => (
           <article className={'alert-card ' + (a.acknowledged_at ? 'read' : '')} key={a.id}>
             <div className="section-heading">
-              <span className="badge amber">
-                {a.acknowledged_at ? 'Reviewed' : 'Review signal'}
-              </span>
+              <span className="badge amber">{a.acknowledged_at ? 'Reviewed' : 'New alert'}</span>
               <time>{date(a.created_at)}</time>
             </div>
             <h3>{a.evidence.rule_name || a.title}</h3>
@@ -49,7 +47,7 @@ export default function AlertFeed({
               Period ended {date(a.evidence.end)} · Rule v{a.evidence.rule_version}
             </p>
             <details>
-              <summary>Inspect evidence</summary>
+              <summary>View calculation and sources</summary>
               <pre>{JSON.stringify(a.evidence, null, 2)}</pre>
             </details>
             <div className="alert-actions">
