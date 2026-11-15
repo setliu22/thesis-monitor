@@ -46,6 +46,7 @@ class RuleVersion(Entity):
     name: Mapped[str] = mapped_column(String(160))
     metric: Mapped[str] = mapped_column(String(50))
     operator: Mapped[str] = mapped_column(String(10))
+    period_kind: Mapped[str] = mapped_column(String(10), default='quarter')
     threshold: Mapped[Decimal] = mapped_column(Numeric(30, 8))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -88,6 +89,7 @@ class Observation(Entity):
     kind: Mapped[str] = mapped_column(String(10))
     value: Mapped[Decimal | None] = mapped_column(Numeric(30, 8))
     unit: Mapped[str] = mapped_column(String(20))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
     payload: Mapped[dict] = mapped_column(JSON)
 
 
