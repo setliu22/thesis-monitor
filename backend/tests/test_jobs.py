@@ -45,3 +45,15 @@ def test_skip_locked_lets_another_worker_claim_other_company(sessions):
         blocker.scalar(select(Job).where(Job.id==first.id).with_for_update())
         claimed=claim_job(sessions,'competitor')
         assert claimed.id==second.id
+
+
+def test_worker_processes_queue_and_persists_success(sessions):
+    from app.worker import process_once
+    from app.models import Company
+    from test_ingest import Client
+    with sessions() as s: job=enqueue_refresh(s,1); s.commit()
+    assert process_once(sessions,Client(),'test-owner')
+    with sessions() as s:
+        assert s.get(Job,job.id).status=='succeeded'
+        assert s.get(Company,1).last_success
+    assert not process_once(sessions,Client(),'test-owner')
