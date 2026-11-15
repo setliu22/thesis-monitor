@@ -30,3 +30,15 @@ Independent review found three issues; all were reproduced and fixed with regres
 - See `feature-audit.md` for an explicit comparison against the requested workflow. Narrative LLM analysis remains unconfigured and on demand; automated narrative monitoring has not been delivered.
 
 The expanded-data change received a separate read-only review: no important issues found. The unchanged demo thesis and paused demo rule created for the original UI check were removed; user-entered data was preserved.
+
+## Hosting/email update — November 15, 2026
+
+- 48 backend tests passed against isolated PostgreSQL, including transactional rollback, same-key retry, permanent rejection, expired-window handling, recovery of a crashed dispatch lease, disabled sending, hosted authentication and cross-site mutation rejection.
+- 5 frontend tests passed; TypeScript and Vite production build passed.
+- Ruff F checks and Docker Compose configuration validation passed.
+- Outbox migration applied to the local development database; /api/notifications reports the confirmed recipient, configured=false, no deliveries. No live email was sent.
+- Independent review found invalid Compose indentation and unsupported Render environment-group prompts; both corrected. Render secrets now prompt on the web service, and workers reference them.
+- Local UI checked in browser; screenshot docs/email-alerts-preview.png. UI reports email off while provider credentials are missing.
+- No Docker engine is available, so the complete container image has not been built/run. No Render account is connected; cloud provisioning, database transfer, restart recovery on a real host, live provider acceptance and inbox receipt remain unverified.
+
+- Render Blueprint passed validation against the official Render JSON schema fetched from https://render.com/schema/render.yaml.json. This checks configuration shape, not a real account deployment.

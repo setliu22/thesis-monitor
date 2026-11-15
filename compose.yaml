@@ -1,5 +1,6 @@
 services:
   db:
+    restart: unless-stopped
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: thesis
@@ -23,12 +24,16 @@ services:
       db:
         condition: service_healthy
   api:
+    restart: unless-stopped
     build: ./backend
     environment: &app_env
       DATABASE_URL: postgresql+psycopg://thesis:thesis@db:5432/thesis
       SEC_USER_AGENT: ${SEC_USER_AGENT:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       REFRESH_SECONDS: ${REFRESH_SECONDS:-3600}
     ports:
       - '127.0.0.1:8000:8000'
@@ -36,9 +41,18 @@ services:
       migrate:
         condition: service_completed_successfully
   worker:
+    restart: unless-stopped
     build: ./backend
     environment: *app_env
     command: ['python', '-m', 'app.worker']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  notifier:
+    build: ./backend
+    restart: unless-stopped
+    environment: *app_env
+    command: ['python', '-m', 'app.notifications']
     depends_on:
       migrate:
         condition: service_completed_successfully

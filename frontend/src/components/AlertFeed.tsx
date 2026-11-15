@@ -1,6 +1,18 @@
 import { Bell, Check, ArrowUpRight } from 'lucide-react';
 import type { Alert } from '../types';
-import { date, format, labels, operators } from '../api';
+import { date, format, labels, operators, api } from '../api';
+import { useEffect, useState } from 'react';
+type DeliveryStatus = {
+  configured: boolean;
+  recipient: string;
+  deliveries: {
+    id: number;
+    alert_id: number;
+    status: string;
+    attempts: number;
+    error: string | null;
+  }[];
+};
 export default function AlertFeed({
   alerts,
   acknowledge,
@@ -10,6 +22,22 @@ export default function AlertFeed({
   acknowledge: (id: number) => void;
   busy: boolean;
 }) {
+  const [delivery, setDelivery] = useState<DeliveryStatus | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      api<DeliveryStatus>('/notifications')
+        .then((result) => {
+          if (active && Array.isArray(result.deliveries)) setDelivery(result);
+        })
+        .catch(() => {});
+    void load();
+    const timer = window.setInterval(load, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
   return (
     <section className="panel">
       <div className="section-heading">
@@ -21,6 +49,20 @@ export default function AlertFeed({
         </div>
         <Bell size={20} />
       </div>
+      <p className="muted">
+        {delivery
+          ? delivery.configured
+            ? `Email alerts: ${delivery.recipient}. Delivery runs in a separate server process.`
+            : 'Email alerts are off. The server needs a Resend API key and sender address.'
+          : 'Email delivery status is unavailable.'}
+      </p>
+      {delivery?.deliveries
+        .filter((d) => d.status === 'failed' || d.status === 'uncertain')
+        .map((d) => (
+          <p role="alert" key={d.id}>
+            Email for alert #{d.alert_id}: {d.status}. {d.error}
+          </p>
+        ))}
       {alerts.length === 0 ? (
         <div className="inline-empty">
           <span className="empty-icon">
@@ -45,6 +87,12 @@ export default function AlertFeed({
             </p>
             <p className="muted">
               Period ended {date(a.evidence.end)} · Rule v{a.evidence.rule_version}
+            </p>
+            <p className="muted">
+              Email: {delivery?.deliveries.find((d) => d.alert_id === a.id)?.status || 'not queued'}
+              {delivery?.deliveries.find((d) => d.alert_id === a.id)?.status === 'accepted'
+                ? ' by provider (inbox delivery not confirmed)'
+                : ''}
             </p>
             <details>
               <summary>View calculation and sources</summary>

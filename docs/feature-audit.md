@@ -31,3 +31,7 @@ The application covers the agreed SEC-backed numeric monitor. The full narrative
 4. Verify the Docker runtime path on a machine with Docker installed.
 
 The user also needs to enter their own thesis and enable their chosen thresholds before this can monitor their investment reasoning. That is product setup, not something the app should invent.
+
+### Hosting/email update
+
+Email outbox and separate dispatcher are now implemented with bounded retries, crash recovery, provider idempotency, and visible failure states. Hosted single-owner password protection and a paid Render Blueprint are prepared. **Not activated:** no connected host, verified sender or Resend API key. There is still no running cloud service, no confirmed inbox delivery, no bounce tracking, and no external uptime monitor. See hosting-and-email.md for exact behavior and activation steps; earlier statements that external delivery code is absent are superseded by this update.

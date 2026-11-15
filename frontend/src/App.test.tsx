@@ -24,16 +24,18 @@ function backend() {
     'fetch',
     vi.fn(async (url: string, options?: RequestInit) => {
       let value: unknown =
-        url === '/api/settings'
-          ? {
-              sec_configured: false,
-              llm_configured: false,
-              refresh_seconds: 3600,
-              metrics: { revenue: 'USD' },
-            }
-          : url === '/api/companies'
-            ? [company]
-            : detail;
+        url === '/api/notifications'
+          ? { configured: false, recipient: '', deliveries: [] }
+          : url === '/api/settings'
+            ? {
+                sec_configured: false,
+                llm_configured: false,
+                refresh_seconds: 3600,
+                metrics: { revenue: 'USD' },
+              }
+            : url === '/api/companies'
+              ? [company]
+              : detail;
       if (url.endsWith('/thesis') && options?.method === 'PUT')
         value = { version: 1, body: JSON.parse(String(options.body)).body };
       return { ok: true, json: async () => value };

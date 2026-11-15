@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
+from urllib.parse import urlparse
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -29,18 +30,59 @@ from .rules import latest_rules, evaluate_company
 
 app = FastAPI(title="Thesis Monitor", version="1.0.0")
 app.add_middleware(
-    TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"]
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "testserver"]
+    + ([urlparse(settings.app_origin).hostname] if settings.app_origin else []),
 )
 
 
 @app.middleware("http")
 async def local_origin(request: Request, call_next):
+    if (
+        settings.production
+        and (
+            not settings.app_origin.startswith("https://")
+            or len(settings.owner_password) < 24
+        )
+    ) or (settings.app_origin and not settings.owner_password):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Hosted access password is not configured"},
+        )
+    if settings.owner_password and request.url.path not in ("/health", "/ready"):
+        import base64
+        import secrets
+
+        try:
+            scheme, encoded = request.headers.get("authorization", "").split(" ", 1)
+            credentials = base64.b64decode(encoded, validate=True).decode()
+            valid = scheme.lower() == "basic" and secrets.compare_digest(
+                credentials.encode(), ("owner:" + settings.owner_password).encode()
+            )
+        except (ValueError, UnicodeError):
+            valid = False
+        if not valid:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Sign in as owner"},
+                headers={
+                    "WWW-Authenticate": 'Basic realm="Thesis Monitor", charset="UTF-8"'
+                },
+            )
+    if (
+        request.method not in ("GET", "HEAD", "OPTIONS")
+        and request.headers.get("sec-fetch-site") == "cross-site"
+    ):
+        return JSONResponse(
+            status_code=403, content={"detail": "Cross-site changes are not allowed"}
+        )
     origin = request.headers.get("origin")
     if (
         request.method not in ("GET", "HEAD", "OPTIONS")
         and origin
         and origin
         not in {
+            settings.app_origin,
             "http://localhost:8080",
             "http://127.0.0.1:8080",
             "http://localhost:5173",
@@ -363,3 +405,28 @@ def analyze(company_id: int, data: AnalysisInput, s: Session = Depends(get_sessi
     )
     s.commit()
     return record(job)
+
+
+@app.get("/api/notifications")
+def notifications(s: Session = Depends(get_session)):
+    from .models import Delivery
+    from .notifications import configured
+
+    return {
+        "configured": configured(),
+        "recipient": settings.alert_email,
+        "deliveries": [
+            record(row)
+            for row in s.scalars(
+                select(Delivery).order_by(Delivery.id.desc()).limit(50)
+            )
+        ],
+    }
+
+
+# Production image includes the Vite build. API routes are registered first.
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+if Path("static").is_dir():
+    app.mount("/", StaticFiles(directory="static", html=True), name="frontend")

@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     lease_seconds: int = Field(default=180, ge=30)
     max_attempts: int = Field(default=3, ge=1, le=10)
     openai_api_key: str = ""
+    production: bool = False
+    app_origin: str = ""
+    owner_password: str = ""
+    resend_api_key: str = ""
+    email_from: str = ""
+    alert_email: str = ""
     llm_model: str = "gpt-4.1-mini"
 
 

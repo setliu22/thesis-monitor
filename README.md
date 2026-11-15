@@ -112,3 +112,7 @@ This is a single-user local app. Default database credentials are local developm
 - [Implementation decisions and review](docs/decisions-and-review.md)
 
 Primary sources: [SEC public APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces), [SEC access guidance](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).
+
+## Always-on deployment and email
+
+The source now includes a transactional email outbox, independent notification dispatcher, hosted password protection, and a Render Blueprint for the web app, SEC worker, email worker and managed PostgreSQL. See [hosting-and-email.md](docs/hosting-and-email.md) for activation and failure semantics. These services have **not** been provisioned. Email needs a Resend API key and verified sender. Closing the browser does not stop workers; turning off the laptop still stops a local deployment.

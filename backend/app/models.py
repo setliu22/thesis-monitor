@@ -150,3 +150,20 @@ class AlertEvent(Entity):
 
 
 Index("ix_jobs_due", Job.status, Job.available_at)
+
+
+class Delivery(Entity):
+    __tablename__ = "deliveries"
+    alert_id: Mapped[int] = mapped_column(ForeignKey("alerts.id"), unique=True)
+    key: Mapped[str] = mapped_column(String(80), unique=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    available_at: Mapped[str] = mapped_column(String(40), default=now)
+    first_attempt: Mapped[str | None] = mapped_column(String(40))
+    owner: Mapped[str | None] = mapped_column(String(80))
+    provider_id: Mapped[str | None] = mapped_column(String(100))
+    error: Mapped[str | None] = mapped_column(String(250))
+
+
+Index("ix_deliveries_due", Delivery.status, Delivery.available_at)

@@ -54,21 +54,23 @@ def evaluate_company(session, company_id):
             )
         ):
             continue
-        session.add(
-            Alert(
-                company_id=company_id,
-                rule_id=rule.id,
-                observation_key=observation.identity,
-                title=f"{rule.name}: threshold crossed",
-                evidence=observation.payload
-                | {
-                    "threshold": str(rule.threshold),
-                    "operator": rule.operator,
-                    "rule_version": rule.version,
-                    "rule_name": rule.name,
-                },
-            )
+        alert = Alert(
+            company_id=company_id,
+            rule_id=rule.id,
+            observation_key=observation.identity,
+            title=f"{rule.name}: condition met",
+            evidence=observation.payload
+            | {
+                "threshold": str(rule.threshold),
+                "operator": rule.operator,
+                "rule_version": rule.version,
+                "rule_name": rule.name,
+            },
         )
+        session.add(alert)
         session.flush()
+        from .notifications import queue_email
+
+        queue_email(session, alert)
         count += 1
     return count
