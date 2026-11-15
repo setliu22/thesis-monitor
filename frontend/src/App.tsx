@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Activity,
   ArrowDownToLine,
   ArrowUpRight,
   Bell,
@@ -23,13 +22,11 @@ import type { Company, Detail, Settings, Rule } from './types';
 import CompanyDetail from './components/CompanyDetail';
 import RuleEditor, { type RuleDraft } from './components/RuleEditor';
 import AlertFeed from './components/AlertFeed';
-import JobStatus from './components/JobStatus';
-type View = 'Overview' | 'Thesis & rules' | 'Filings' | 'Activity';
+type View = 'Overview' | 'Thesis & rules' | 'Filings';
 const navigation = [
   { name: 'Overview', icon: LayoutDashboard },
   { name: 'Thesis & rules', icon: Target },
   { name: 'Filings', icon: FileText },
-  { name: 'Activity', icon: Activity },
 ] as const;
 export default function App() {
   const [companies, setCompanies] = useState<Company[]>([]),
@@ -231,7 +228,6 @@ export default function App() {
             >
               <Icon size={18} />
               {name}
-              {name === 'Activity' && unread > 0 && <span className="nav-count">{unread}</span>}
             </button>
           ))}
         </nav>
@@ -337,7 +333,13 @@ export default function App() {
             <button
               className="icon-button notification-button"
               aria-label="View alerts"
-              onClick={() => setView('Activity')}
+              onClick={() => {
+                setView('Overview');
+                window.setTimeout(
+                  () => document.getElementById('alerts')?.scrollIntoView({ behavior: 'smooth' }),
+                  0,
+                );
+              }}
             >
               <Bell size={19} />
               {unread > 0 && <i />}
@@ -400,6 +402,15 @@ export default function App() {
               </button>
             </form>
           )}
+          {detail?.company.earnings_schedule?.date && (
+            <p className="fine-print">
+              Next earnings: {date(detail.company.earnings_schedule.date)} ·{' '}
+              {detail.company.earnings_schedule.status === 'confirmed'
+                ? 'Company announced'
+                : 'Estimated; date not confirmed'}
+              . Financial data refreshes around this date.
+            </p>
+          )}
           <div className="page-heading">
             <div>
               <div className="eyebrow">
@@ -410,18 +421,14 @@ export default function App() {
                   ? 'Watchlist overview'
                   : view === 'Thesis & rules'
                     ? 'Thesis & rules'
-                    : view === 'Filings'
-                      ? 'SEC filings'
-                      : 'Alerts & sync history'}
+                    : 'SEC filings'}
               </h1>
               <p>
                 {view === 'Overview'
                   ? 'Review financial results, filings, and alerts for your watchlist.'
                   : view === 'Thesis & rules'
                     ? 'Save your investment thesis and set financial thresholds to monitor.'
-                    : view === 'Filings'
-                      ? 'View company filings on SEC EDGAR.'
-                      : 'Review triggered rules and data refresh jobs.'}
+                    : 'View company filings on SEC EDGAR.'}
               </p>
             </div>
             <div className="page-actions">
@@ -691,12 +698,6 @@ export default function App() {
                     </section>
                   </>
                 )}
-                {view === 'Activity' && (
-                  <div className="activity-grid">
-                    {alertPanel}
-                    <JobStatus jobs={detail.jobs} />
-                  </div>
-                )}
               </>
             )
           )}
@@ -750,6 +751,19 @@ export default function App() {
               <li>Restart the API and worker, reload this page, then refresh SEC data.</li>
             </ol>
             <hr />
+            <h3>Email alerts</h3>
+            <p>
+              Create a Resend account. For testing, its default sender can email your Resend account
+              address. For regular sending, verify a domain. Add these server environment variables:
+            </p>
+            <pre>
+              ALERT_EMAIL=your@email.com{'\n'}EMAIL_FROM=your verified sender{'\n'}
+              RESEND_API_KEY=your API key
+            </pre>
+            <p>
+              Restart the API and email worker. For alerts while your computer is off, deploy the
+              prepared Render services. Keep the API key on the server.
+            </p>
             <h3>Optional filing analysis</h3>
             <p>
               Set <code>OPENAI_API_KEY</code> on the server to enable model observations. Selected
@@ -757,8 +771,9 @@ export default function App() {
               request analysis.
             </p>
             <p className="fine-print">
-              Scheduled refresh every {Math.round((settings?.refresh_seconds ?? 3600) / 60)} minutes
-              while the worker is running. This workspace is intended for local, personal use.
+              Financial data refreshes around earnings. The worker checks for a newly announced date
+              once a day. Email alerts require a running server, a Resend API key and a verified
+              sender.
             </p>
             <button className="button primary" onClick={() => setShowSettings(false)}>
               Got it <Check size={15} />

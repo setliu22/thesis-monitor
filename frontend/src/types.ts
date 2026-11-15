@@ -1,4 +1,5 @@
 export type Company = {
+  earnings_schedule?: { date?: string; status?: string; source?: string };
   id: number;
   ticker: string;
   name: string;

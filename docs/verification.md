@@ -42,3 +42,7 @@ The expanded-data change received a separate read-only review: no important issu
 - No Docker engine is available, so the complete container image has not been built/run. No Render account is connected; cloud provisioning, database transfer, restart recovery on a real host, live provider acceptance and inbox receipt remain unverified.
 
 - Render Blueprint passed validation against the official Render JSON schema fetched from https://render.com/schema/render.yaml.json. This checks configuration shape, not a real account deployment.
+
+## Earnings scheduling and navigation update
+
+Removed Activity/sync-history UI and added explicitly estimated/confirmed earnings information. Applied the new calendar-state migration to the local database. Production frontend build and Ruff F checks passed. Checked the live company API: CACI retains 1,150 observations, stale=false, estimated date 2027-01-21 from the prior filing plus 91 days. No company-confirmed next date was found; this estimate is not presented as an announced date. Prior automated test results above precede this change; the test suite was not rerun for this update.

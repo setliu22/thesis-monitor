@@ -248,13 +248,14 @@ def detail(company_id: int, s: Session = Depends(get_session)):
             .limit(100)
         )
     ]
-    stale = (
-        not company.last_success
-        or (
-            datetime.now(timezone.utc) - datetime.fromisoformat(company.last_success)
-        ).total_seconds()
-        > settings.refresh_seconds * 2
+    # A quarter-old statement remains current until a new report is due.
+    from .earnings import refresh_due, latest_loaded_report
+
+    latest_report = latest_loaded_report(s, company_id)
+    stale = company.data_status == "stale" or refresh_due(
+        company, datetime.now(timezone.utc), latest_report
     )
+
     return {
         "company": record(company) | {"stale": stale},
         "thesis": record(thesis) if thesis else None,

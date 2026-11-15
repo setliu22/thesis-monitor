@@ -35,3 +35,7 @@ The user also needs to enter their own thesis and enable their chosen thresholds
 ### Hosting/email update
 
 Email outbox and separate dispatcher are now implemented with bounded retries, crash recovery, provider idempotency, and visible failure states. Hosted single-owner password protection and a paid Render Blueprint are prepared. **Not activated:** no connected host, verified sender or Resend API key. There is still no running cloud service, no confirmed inbox delivery, no bounce tracking, and no external uptime monitor. See hosting-and-email.md for exact behavior and activation steps; earlier statements that external delivery code is absent are superseded by this update.
+
+### Earnings scheduling update
+
+Activity/sync history removed. Initial import and manual refresh remain; ongoing financial refresh now runs daily only within an earnings window. CACI issuer announcements are checked daily; other tickers use a labeled historical estimate. Estimates are not confirmed dates. See hosting-and-email.md for window bounds, missing/late-report limitations and the self-addressed Resend test setup. Build, live API and UI were checked; prior test counts above do not cover this update.

@@ -39,7 +39,7 @@ export default function AlertFeed({
     };
   }, []);
   return (
-    <section className="panel">
+    <section className="panel" id="alerts">
       <div className="section-heading">
         <div>
           <span className="eyebrow">

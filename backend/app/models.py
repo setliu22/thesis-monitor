@@ -37,6 +37,7 @@ class Company(Entity):
     last_attempt: Mapped[str | None] = mapped_column(String(40))
     data_status: Mapped[str] = mapped_column(String(30), default="empty")
     last_error: Mapped[str | None] = mapped_column(Text)
+    earnings_schedule: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class ThesisVersion(Entity):

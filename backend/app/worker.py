@@ -13,6 +13,7 @@ from sqlalchemy import select
 from .config import settings
 from .db import SessionLocal, sec_gate
 from .models import Company
+from .earnings import update_calendar, refresh_due, latest_loaded_report
 from .sec import SecClient, valid_identity
 from .jobs import enqueue_refresh, claim_job, heartbeat, finish_job, fail_job
 from .ingest import ingest_company
@@ -23,12 +24,11 @@ logger = logging.getLogger("thesis.worker")
 def schedule(sessions=SessionLocal):
     if not valid_identity(settings.sec_user_agent):
         return
+    update_calendar(sessions)
     with sessions.begin() as s:
         for company in s.scalars(select(Company)):
-            last = company.last_attempt or company.created_at
-            if (
-                datetime.now(timezone.utc) - datetime.fromisoformat(last)
-            ).total_seconds() >= settings.refresh_seconds:
+            filing = latest_loaded_report(s, company.id)
+            if refresh_due(company, datetime.now(timezone.utc), filing):
                 enqueue_refresh(s, company.id)
 
 
