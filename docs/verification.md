@@ -28,3 +28,5 @@ Independent review found three issues; all were reproduced and fixed with regres
 - Verified CACI capital expenditures against filing `0001628280-26-066827`; issuer-specific mapping uses PaymentsToAcquireProductiveAssets. Quarter ended September 30, 2026: operating cash flow $161,314,000 less capex $11,359,000 = free cash flow $149,955,000 under the app's stated definition.
 - Tested numeric alert creation, acknowledgment and deduplication by replaying genuine SEC snapshots into an isolated temporary database. No user rules or alerts were changed. See `checks/live-alert-pipeline.json`.
 - See `feature-audit.md` for an explicit comparison against the requested workflow. Narrative LLM analysis remains unconfigured and on demand; automated narrative monitoring has not been delivered.
+
+The expanded-data change received a separate read-only review: no important issues found. The unchanged demo thesis and paused demo rule created for the original UI check were removed; user-entered data was preserved.
