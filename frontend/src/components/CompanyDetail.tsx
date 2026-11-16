@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowUpRight, Database, TrendingUp, FileText } from 'lucide-react';
 import { date, format, labels, instantMetrics, statementGroups } from '../api';
 import FinancialHistory from './FinancialHistory';
+import MetricMappings from './MetricMappings';
 import type { Detail } from '../types';
 import Trend from './Trend';
 export { default as Trend } from './Trend';
@@ -215,6 +216,7 @@ export default function CompanyDetail({
           </div>
         </section>
       )}
+      <MetricMappings companyId={detail.company.id} refreshed={detail.company.last_success} />
       <FinancialHistory observations={detail.observations} kind={kind} />
     </>
   );

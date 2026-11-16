@@ -465,6 +465,63 @@ from .calendar_api import router as calendar_router
 
 app.include_router(calendar_router)
 
+
+@app.get("/api/companies/{company_id}/metric-mappings")
+def metric_mappings(company_id: int, s: Session = Depends(get_session)):
+    from .mappings import latest_registry
+
+    company_or_404(s, company_id)
+    return latest_registry(s, company_id)
+
+
+@app.delete("/api/companies/{company_id}/metric-mappings/{mapping_id}")
+def disable_metric_mapping(
+    company_id: int, mapping_id: str, s: Session = Depends(get_session)
+):
+    from .mappings import latest_registry, save_registry
+    from .jobs import enqueue_refresh
+    import copy
+
+    company_or_404(s, company_id, True)
+    registry = copy.deepcopy(latest_registry(s, company_id))
+    item = next((m for m in registry["mappings"] if m["id"] == mapping_id), None)
+    if item is None:
+        raise HTTPException(404, "Mapping not found")
+    item["status"] = "disabled"
+    save_registry(s, company_id, registry)
+    enqueue_refresh(s, company_id)
+    s.commit()
+    return {"disabled": mapping_id}
+
+
+@app.post("/api/companies/{company_id}/metric-mappings/{mapping_id}/approve")
+def approve_metric_mapping(
+    company_id: int, mapping_id: str, s: Session = Depends(get_session)
+):
+    from .mappings import latest_registry, save_registry
+    import copy
+
+    company_or_404(s, company_id, True)
+    registry = copy.deepcopy(latest_registry(s, company_id))
+    item = next((m for m in registry["mappings"] if m["id"] == mapping_id), None)
+    if item is None or item["status"] != "pending":
+        raise HTTPException(409, "Choose a pending mapping")
+    if not item.get("structural_checks_passed"):
+        raise HTTPException(
+            409,
+            "Source units and multiple reporting periods must pass validation before approval",
+        )
+    item["status"] = "accepted"
+    item["reviewed_at"] = now()
+    item["validation"] = (
+        "Definition reviewed by owner; source units and multiple reporting periods validated"
+    )
+    save_registry(s, company_id, registry)
+    enqueue_refresh(s, company_id)
+    s.commit()
+    return {"approved": mapping_id}
+
+
 # Production image includes the Vite build. API routes are registered first.
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles

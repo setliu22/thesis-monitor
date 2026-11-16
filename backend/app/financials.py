@@ -106,12 +106,18 @@ def compatible(a, b):
     return {x["tag"] for x in a["sources"]} == {x["tag"] for x in b["sources"]}
 
 
-def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
+def normalize(
+    companyfacts: dict, as_of: datetime | None = None, mappings: dict | None = None
+) -> list[dict]:
     cutoff = (as_of or datetime.now(timezone.utc)).date().isoformat()
     tags = companyfacts.get("facts", {}).get("us-gaap", {})
     output = []
     series = {}
-    mappings = {metric: list(names) for metric, names in TAGS.items()}
+    overrides = mappings or {}
+    mappings = {
+        metric: list(names) + overrides.get(metric, [])
+        for metric, names in TAGS.items()
+    }
     for metric, names in mappings.items():
         candidates = {}
         for priority, tag in enumerate(names):
@@ -275,6 +281,7 @@ def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
                 )
             )
     for metric, names in INSTANT_TAGS.items():
+        names = list(names) + overrides.get(metric, [])
         selected = {}
         for priority, tag in enumerate(names):
             for f in tags.get(tag, {}).get("units", {}).get("USD", []):
