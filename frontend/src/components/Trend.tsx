@@ -26,6 +26,11 @@ export default function Trend({
       </div>
     );
   const values = valid.map((p) => Number(p.value));
+  const change = values.at(-1)! - values[0];
+  const lowerIsBetter = metric === 'debt' || metric === 'liabilities';
+  const direction = change > 0 ? 'Increased' : change < 0 ? 'Decreased' : 'Unchanged';
+  const favorable = lowerIsBetter ? change < 0 : change > 0;
+  const color = change === 0 ? '#64748b' : favorable ? '#15803d' : '#b91c1c';
   const min = Math.min(...values),
     max = Math.max(...values);
   const pad = (max - min || Math.abs(min) || 1) * 0.12;
@@ -49,13 +54,13 @@ export default function Trend({
       <svg
         viewBox="0 0 600 180"
         role="img"
-        aria-label={`${labels[metric]} historical trend, ${date(valid[0].end)} to ${date(valid.at(-1)!.end)}`}
+        aria-label={`${labels[metric]} historical trend. ${direction} over the displayed period, ${date(valid[0].end)} to ${date(valid.at(-1)!.end)}.`}
         onMouseLeave={() => setHover(null)}
       >
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#91ac68" stopOpacity=".25" />
-            <stop offset="100%" stopColor="#91ac68" stopOpacity="0" />
+            <stop offset="0%" stopColor={color} stopOpacity=".22" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
         {!compact &&
@@ -66,7 +71,7 @@ export default function Trend({
         <path
           d={path}
           fill="none"
-          stroke="#4a6945"
+          stroke={color}
           strokeWidth={compact ? 6 : 2.5}
           strokeLinecap="round"
         />
@@ -77,7 +82,7 @@ export default function Trend({
             cy={y}
             r={compact ? 4 : hover === i ? 6 : 4}
             fill="#fff"
-            stroke="#4a6945"
+            stroke={color}
             strokeWidth="2"
             tabIndex={compact ? undefined : 0}
             onMouseEnter={() => setHover(i)}
@@ -90,6 +95,12 @@ export default function Trend({
           </circle>
         ))}
       </svg>
+      {!compact && (
+        <p className="fine-print" style={{ color }}>
+          {direction} over the displayed period
+          {lowerIsBetter ? ' · Lower balances are shown in green' : ''}.
+        </p>
+      )}
       <div className="chart-labels">
         <span>{date(valid[0].end)}</span>
         <span>{date(valid.at(-1)!.end)}</span>
