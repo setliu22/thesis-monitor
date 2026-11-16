@@ -37,6 +37,7 @@ class Company(Entity):
     last_attempt: Mapped[str | None] = mapped_column(String(40))
     data_status: Mapped[str] = mapped_column(String(30), default="empty")
     invested: Mapped[bool] = mapped_column(Boolean, default=True)
+    watched: Mapped[bool] = mapped_column(Boolean, default=True)
     last_error: Mapped[str | None] = mapped_column(Text)
     earnings_schedule: Mapped[dict] = mapped_column(JSON, default=dict)
 

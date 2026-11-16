@@ -12,7 +12,7 @@ def enqueue_refresh(session, company_id: int, kind="refresh", payload=None) -> J
     company = session.scalar(
         select(Company).where(Company.id == company_id).with_for_update()
     )
-    if not company:
+    if not company or not company.watched:
         raise ValueError("Company not found")
     existing = session.scalar(
         select(Job).where(

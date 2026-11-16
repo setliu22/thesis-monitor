@@ -66,7 +66,7 @@ def deliver_once(sessions=SessionLocal, transport=None):
         if not reminder_allowed(s, item, current):
             item.status, item.error = (
                 "cancelled",
-                "Reminder expired, changed or disabled",
+                "Delivery expired, disabled, changed, or company removed",
             )
             return True
         due_at = reminder_send_at(s, item)

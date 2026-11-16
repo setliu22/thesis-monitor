@@ -33,7 +33,7 @@ def schedule(sessions=SessionLocal):
     if not valid_identity(settings.sec_user_agent):
         return
     with sessions.begin() as s:
-        for company in s.scalars(select(Company)):
+        for company in s.scalars(select(Company).where(Company.watched.is_(True))):
             filing = latest_loaded_report(s, company.id)
             if refresh_due(company, datetime.now(timezone.utc), filing):
                 enqueue_refresh(s, company.id)

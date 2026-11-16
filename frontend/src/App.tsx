@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Settings2,
+  Trash2,
   ShieldCheck,
   Target,
   X,
@@ -49,7 +50,7 @@ export default function App() {
   const loadCompanies = useCallback(async () => {
     const rows = await api<Company[]>('/companies');
     setCompanies(rows);
-    setSelected((old) => old ?? rows[0]?.id ?? null);
+    setSelected((old) => (rows.some((c) => c.id === old) ? old : (rows[0]?.id ?? null)));
   }, []);
   useEffect(() => {
     Promise.all([loadCompanies(), api<Settings>('/settings').then(setSettings)])
@@ -122,6 +123,14 @@ export default function App() {
       setShowAdd(false);
       setView('Overview');
       setMessage('Company added to your watchlist.');
+    });
+  }
+  async function removeCompany(company: Company) {
+    await act(async () => {
+      await api('/companies/' + company.id, 'DELETE');
+      if (selected === company.id) setDetail(null);
+      await loadCompanies();
+      setMessage(company.ticker + ' removed. Add it again to restore its saved data.');
     });
   }
   async function saveRule(draft: RuleDraft, key?: string) {
@@ -256,18 +265,28 @@ export default function App() {
         )}
         <div className="watchlist">
           {companies.map((c) => (
-            <button
-              key={c.id}
-              className={'watch-company ' + (selected === c.id ? 'selected' : '')}
-              onClick={() => setSelected(c.id)}
-            >
-              <span className="watch-avatar">{c.ticker.slice(0, 1)}</span>
-              <span className="grow">
-                <strong>{c.ticker}</strong>
-                <small>{c.name}</small>
-              </span>
-              <span className={'status-dot ' + (c.last_success ? 'green' : '')} />
-            </button>
+            <div className={`watch-row ${selected === c.id ? 'selected' : ''}`} key={c.id}>
+              <button
+                className={'watch-company ' + (selected === c.id ? 'selected' : '')}
+                onClick={() => setSelected(c.id)}
+              >
+                <span className="watch-avatar">{c.ticker.slice(0, 1)}</span>
+                <span className="grow">
+                  <strong>{c.ticker}</strong>
+                  <small>{c.name}</small>
+                </span>
+                <span className={'status-dot ' + (c.last_success ? 'green' : '')} />
+              </button>
+              <button
+                className="watch-remove"
+                aria-label={'Remove ' + c.ticker + ' from watchlist'}
+                title={'Remove ' + c.ticker + ' from watchlist'}
+                disabled={busy}
+                onClick={() => void removeCompany(c)}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
           ))}
         </div>
         <div className="sidebar-bottom">
@@ -344,33 +363,48 @@ export default function App() {
             </div>
           )}
           {view === 'Calendar' ? (
-            <InvestmentCalendar />
+            <InvestmentCalendar
+              watchlistVersion={companies.map((c) => `${c.id}:${c.invested}`).join(',')}
+            />
           ) : (
             <>
               {detail && (
-                <label className="holding-toggle">
-                  <input
-                    type="checkbox"
-                    checked={detail.company.invested ?? true}
-                    onChange={(e) => {
-                      const invested = e.target.checked;
-                      void act(async () => {
-                        await api('/companies/' + selected + '/holding', 'PUT', { invested });
-                        await loadCompanies();
-                        await reload();
-                      });
-                    }}
-                  />
-                  {(detail.company.invested ?? true) ? 'Invested in this stock' : 'Following only'}
-                </label>
+                <div className="company-status-bar">
+                  <label className="holding-toggle">
+                    <input
+                      type="checkbox"
+                      checked={detail.company.invested ?? true}
+                      onChange={(e) => {
+                        const invested = e.target.checked;
+                        void act(async () => {
+                          await api('/companies/' + selected + '/holding', 'PUT', { invested });
+                          await loadCompanies();
+                          await reload();
+                        });
+                      }}
+                    />
+                    {(detail.company.invested ?? true)
+                      ? 'Invested in this stock'
+                      : 'Following only'}
+                  </label>
+                  <button
+                    className="text-button remove-company-button"
+                    disabled={busy}
+                    onClick={() => void removeCompany(detail.company)}
+                  >
+                    <Trash2 size={14} /> Remove from watchlist
+                  </button>
+                </div>
               )}
               {detail && (
-                <p className="fine-print">
+                <p className="earnings-status">
                   {detail.company.earnings_schedule?.date
                     ? `Next earnings: ${date(detail.company.earnings_schedule.date)} · Provider estimate (Alpha Vantage).`
                     : 'Next earnings date unavailable.'}{' '}
                   {detail.company.earnings_schedule?.error ||
-                    'Financial data refreshes around the provider date.'}
+                    (detail.company.earnings_schedule?.date
+                      ? 'Financial data refreshes around earnings.'
+                      : 'Checking for an announced date. Financial data is checked weekly until then.')}
                 </p>
               )}
               <div className="page-heading">

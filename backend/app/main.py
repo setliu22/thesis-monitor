@@ -110,7 +110,7 @@ def record(row):
 
 
 def company_or_404(s, company_id, lock=False):
-    query = select(Company).where(Company.id == company_id)
+    query = select(Company).where(Company.id == company_id, Company.watched.is_(True))
     if lock:
         query = query.with_for_update()
     company = s.scalar(query)
@@ -170,13 +170,22 @@ def configuration():
 
 @app.get("/api/companies")
 def companies(s: Session = Depends(get_session)):
-    return [record(c) for c in s.scalars(select(Company).order_by(Company.ticker))]
+    return [
+        record(c)
+        for c in s.scalars(
+            select(Company).where(Company.watched.is_(True)).order_by(Company.ticker)
+        )
+    ]
 
 
 @app.post("/api/companies", status_code=201)
 def add_company(data: CompanyInput, s: Session = Depends(get_session)):
-    existing = s.scalar(select(Company).where(Company.ticker == data.ticker))
+    existing = s.scalar(
+        select(Company).where(Company.ticker == data.ticker).with_for_update()
+    )
     if existing:
+        existing.watched = True
+        s.commit()
         return record(existing)
     require_sec()
     try:
@@ -196,7 +205,42 @@ def add_company(data: CompanyInput, s: Session = Depends(get_session)):
         company = s.scalar(select(Company).where(Company.ticker == data.ticker))
         if not company:
             raise
+        company.watched = True
+        s.commit()
     return record(company)
+
+
+@app.delete("/api/companies/{company_id}")
+def remove_company(company_id: int, s: Session = Depends(get_session)):
+    from .models import Delivery, MarketEvent
+    from sqlalchemy import or_
+
+    company = company_or_404(s, company_id, True)
+    company.watched = False
+    for job in s.scalars(
+        select(Job)
+        .where(Job.company_id == company_id, Job.status.in_(["queued", "running"]))
+        .with_for_update()
+    ):
+        job.status, job.finished_at, job.lease_until = "cancelled", now(), None
+    for item in s.scalars(
+        select(Delivery)
+        .where(
+            Delivery.status == "pending",
+            or_(
+                Delivery.event_id.in_(
+                    select(MarketEvent.id).where(MarketEvent.company_id == company_id)
+                ),
+                Delivery.alert_id.in_(
+                    select(Alert.id).where(Alert.company_id == company_id)
+                ),
+            ),
+        )
+        .with_for_update()
+    ):
+        item.status, item.error = "cancelled", "Company removed from watchlist"
+    s.commit()
+    return {"removed": company_id}
 
 
 @app.get("/api/companies/{company_id}")

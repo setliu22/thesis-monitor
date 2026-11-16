@@ -33,7 +33,7 @@ def update_calendar(sessions=SessionLocal, provider=None, current=None):
     with sessions() as s:
         targets = [
             (c.id, c.ticker, dict(c.earnings_schedule or {}))
-            for c in s.scalars(select(Company))
+            for c in s.scalars(select(Company).where(Company.watched.is_(True)))
         ]
     if not targets:
         return
@@ -52,7 +52,7 @@ def update_calendar(sessions=SessionLocal, provider=None, current=None):
             company = s.scalar(
                 select(Company).where(Company.id == identity).with_for_update()
             )
-            if not company:
+            if not company or not company.watched:
                 continue
             state = dict(company.earnings_schedule or {})
             if state.get("provider") != "alphavantage":

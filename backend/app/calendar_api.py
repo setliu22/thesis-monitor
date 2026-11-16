@@ -32,7 +32,7 @@ class HoldingInput(BaseModel):
 @router.put("/companies/{company_id}/holding")
 def holding(company_id: int, data: HoldingInput, s: Session = Depends(get_session)):
     company = s.get(Company, company_id)
-    if not company:
+    if not company or not company.watched:
         raise HTTPException(404, "Company not found")
     company.invested = data.invested
     s.commit()
@@ -116,13 +116,16 @@ def calendar(
         .order_by(MarketEvent.day, MarketEvent.title)
     ):
         company = companies.get(event.company_id)
+        if company and not company.watched:
+            continue
         if invested_only and company and not company.invested:
             continue
         events.append(record(event) | {"ticker": company.ticker if company else None})
     missing = [
         {"ticker": c.ticker, "name": c.name}
         for c in companies.values()
-        if (not invested_only or c.invested)
+        if c.watched
+        and (not invested_only or c.invested)
         and not (c.earnings_schedule or {}).get("date")
     ]
     sources = [

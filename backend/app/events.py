@@ -85,7 +85,7 @@ def refresh_events(sessions=SessionLocal):
         )
         if cache and not cache.error:
             events = []
-            for company in s.scalars(select(Company)):
+            for company in s.scalars(select(Company).where(Company.watched.is_(True))):
                 for data in cache.payload.get(company.ticker, []):
                     events.append(
                         dict(
@@ -107,7 +107,13 @@ def reminder_allowed(s, item, current):
     if item.expires_at and current.isoformat() >= item.expires_at:
         return False
     if item.event_id is None:
-        return True
+        if item.alert_id is None:
+            return True
+        from .models import Alert
+
+        alert = s.get(Alert, item.alert_id)
+        company = s.get(Company, alert.company_id) if alert else None
+        return bool(company and company.watched)
     event = s.get(MarketEvent, item.event_id)
     prefs = preferences(s)
     if (
@@ -120,7 +126,7 @@ def reminder_allowed(s, item, current):
     ):
         return False
     company = s.get(Company, event.company_id) if event.company_id else None
-    return company is None or company.invested
+    return company is None or (company.watched and company.invested)
 
 
 def queue_reminders(sessions=SessionLocal, current=None):
@@ -146,7 +152,7 @@ def queue_reminders(sessions=SessionLocal, current=None):
             )
         ):
             company = s.get(Company, event.company_id) if event.company_id else None
-            if company and not company.invested:
+            if company and (not company.watched or not company.invested):
                 continue
             event_day = date.fromisoformat(event.day)
             for lead in prefs.days:

@@ -87,7 +87,9 @@ const dateLabel = (d: string) =>
     day: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(d + 'T00:00:00Z'));
-export default function InvestmentCalendar() {
+export default function InvestmentCalendar({
+  watchlistVersion = '',
+}: { watchlistVersion?: string } = {}) {
   const [month, setMonth] = useState(today().slice(0, 7)),
     [selected, setSelected] = useState(today()),
     [data, setData] = useState<Response | null>(null),
@@ -140,7 +142,7 @@ export default function InvestmentCalendar() {
       live = false;
       clearInterval(timer);
     };
-  }, [load]);
+  }, [load, watchlistVersion]);
   useEffect(() => {
     api<Prefs>('/reminder-settings')
       .then(setPrefs)
