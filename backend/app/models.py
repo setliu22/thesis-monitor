@@ -168,3 +168,13 @@ class Delivery(Entity):
 
 
 Index("ix_deliveries_due", Delivery.status, Delivery.available_at)
+
+
+class CalendarCache(Entity):
+    __tablename__ = "calendar_cache"
+    provider: Mapped[str] = mapped_column(String(50), unique=True)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    last_attempt: Mapped[str | None] = mapped_column(String(40))
+    error: Mapped[str | None] = mapped_column(Text)
+    owner: Mapped[str | None] = mapped_column(String(80))
+    lease_until: Mapped[str | None] = mapped_column(String(40))

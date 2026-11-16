@@ -1,6 +1,6 @@
 from sqlalchemy import select, update
 from .models import Company, Snapshot, Filing, Fact, Observation, now
-from .financials import normalize, identity, TAGS, INSTANT_TAGS, ISSUER_CAPEX
+from .financials import normalize, identity, TAGS, INSTANT_TAGS
 from .rules import evaluate_company
 from .jobs import owned_job
 
@@ -78,11 +78,7 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
             existing_facts = set(
                 s.scalars(select(Fact.identity).where(Fact.company_id == company_id))
             )
-            relevant = set(
-                sum(TAGS.values(), [])
-                + sum(INSTANT_TAGS.values(), [])
-                + sum(ISSUER_CAPEX.values(), [])
-            ) | {
+            relevant = set(sum(TAGS.values(), []) + sum(INSTANT_TAGS.values(), [])) | {
                 "LongTermDebtCurrent",
                 "LongTermDebtNoncurrent",
                 "LongTermDebtAndFinanceLeaseObligationsIncludingCurrentMaturities",

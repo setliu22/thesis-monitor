@@ -176,7 +176,7 @@ export default function App() {
           required
           maxLength={12000}
           rows={6}
-          placeholder="I own CACI because…\n\nWhat would strengthen this view? What would change my mind?"
+          placeholder="I own this stock because…\n\nWhat would strengthen this view? What would change my mind?"
         />
         <div className="form-footer">
           <span>Every saved revision is preserved.</span>
@@ -402,13 +402,13 @@ export default function App() {
               </button>
             </form>
           )}
-          {detail?.company.earnings_schedule?.date && (
+          {detail && (
             <p className="fine-print">
-              Next earnings: {date(detail.company.earnings_schedule.date)} ·{' '}
-              {detail.company.earnings_schedule.status === 'confirmed'
-                ? 'Company announced'
-                : 'Estimated; date not confirmed'}
-              . Financial data refreshes around this date.
+              {detail.company.earnings_schedule?.date
+                ? `Next earnings: ${date(detail.company.earnings_schedule.date)} · Provider estimate (Alpha Vantage).`
+                : 'Next earnings date unavailable.'}{' '}
+              {detail.company.earnings_schedule?.error ||
+                'Financial data refreshes around the provider date.'}
             </p>
           )}
           <div className="page-heading">
@@ -472,7 +472,18 @@ export default function App() {
               {message}
             </div>
           )}
-          {loading || (!detail && !error) ? (
+          {!loading && selected === null && (
+            <section className="panel">
+              <h2>Add a stock to get started</h2>
+              <p>
+                Your watchlist starts empty. Search for a US stock ticker to load its SEC filings.
+              </p>
+              <button className="button primary" onClick={() => setShowAdd(true)}>
+                Add company
+              </button>
+            </section>
+          )}
+          {loading || (selected !== null && !detail && !error) ? (
             <div className="loading">
               <LoaderCircle className="spin" />
               Opening your workspace…
@@ -751,6 +762,12 @@ export default function App() {
               <li>Restart the API and worker, reload this page, then refresh SEC data.</li>
             </ol>
             <hr />
+            <h3>Earnings calendar</h3>
+            <p>
+              Get an Alpha Vantage API key and set <code>ALPHAVANTAGE_API_KEY</code> on the server,
+              then restart the API and SEC worker. The same calendar covers every watched ticker.
+              Dates are provider estimates; missing dates are shown as unavailable.
+            </p>
             <h3>Email alerts</h3>
             <p>
               Create a Resend account. For testing, its default sender can email your Resend account

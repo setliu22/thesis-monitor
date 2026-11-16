@@ -28,6 +28,7 @@ services:
     build: ./backend
     environment: &app_env
       DATABASE_URL: postgresql+psycopg://thesis:thesis@db:5432/thesis
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
       SEC_USER_AGENT: ${SEC_USER_AGENT:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}

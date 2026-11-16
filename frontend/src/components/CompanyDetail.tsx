@@ -151,7 +151,7 @@ export default function CompanyDetail({
                 <ArrowUpRight size={15} />
               </div>
               <strong>{format(o?.value, o?.unit)}</strong>
-              <span>{o ? date(o.end) : 'Awaiting SEC data'}</span>
+              <span>{o ? date(o.end) : 'Metric unavailable'}</span>
               {i === 1 && o?.value != null ? (
                 <span className="metric-note">Year over year</span>
               ) : (

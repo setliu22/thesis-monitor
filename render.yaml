@@ -13,6 +13,8 @@ services:
         fromDatabase:
           name: thesis-monitor-db
           property: connectionString
+      - key: ALPHAVANTAGE_API_KEY
+        sync: false
       - key: SEC_USER_AGENT
         sync: false
       - key: APP_ORIGIN
@@ -38,6 +40,11 @@ services:
         fromDatabase:
           name: thesis-monitor-db
           property: connectionString
+      - key: ALPHAVANTAGE_API_KEY
+        fromService:
+          name: thesis-monitor
+          type: web
+          envVarKey: ALPHAVANTAGE_API_KEY
       - key: SEC_USER_AGENT
         fromService:
           name: thesis-monitor
@@ -76,6 +83,11 @@ services:
         fromDatabase:
           name: thesis-monitor-db
           property: connectionString
+      - key: ALPHAVANTAGE_API_KEY
+        fromService:
+          name: thesis-monitor
+          type: web
+          envVarKey: ALPHAVANTAGE_API_KEY
       - key: SEC_USER_AGENT
         fromService:
           name: thesis-monitor

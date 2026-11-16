@@ -13,7 +13,7 @@ class CompanyInput(BaseModel):
     def valid_ticker(cls, v):
         v = v.strip().upper()
         if not re.fullmatch(r"[A-Z][A-Z0-9.-]{0,11}", v):
-            raise ValueError("Enter a US ticker, e.g. CACI")
+            raise ValueError("Enter a valid US stock ticker")
         return v
 
 

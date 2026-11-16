@@ -161,23 +161,13 @@ def configuration():
         "llm_configured": bool(settings.openai_api_key),
         "refresh_seconds": settings.refresh_seconds,
         "metrics": METRICS,
+        "calendar_configured": bool(settings.alphavantage_api_key),
+        "calendar_provider": "Alpha Vantage",
     }
 
 
 @app.get("/api/companies")
 def companies(s: Session = Depends(get_session)):
-    if not s.scalar(select(Company.id).limit(1)):
-        try:
-            with s.begin_nested():
-                s.add(
-                    Company(
-                        ticker="CACI", name="CACI International Inc", cik="0000016058"
-                    )
-                )
-                s.flush()
-            s.commit()
-        except IntegrityError:
-            s.rollback()
     return [record(c) for c in s.scalars(select(Company).order_by(Company.ticker))]
 
 

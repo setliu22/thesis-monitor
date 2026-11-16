@@ -39,3 +39,7 @@ Email outbox and separate dispatcher are now implemented with bounded retries, c
 ### Earnings scheduling update
 
 Activity/sync history removed. Initial import and manual refresh remain; ongoing financial refresh now runs daily only within an earnings window. CACI issuer announcements are checked daily; other tickers use a labeled historical estimate. Estimates are not confirmed dates. See hosting-and-email.md for window bounds, missing/late-report limitations and the self-addressed Resend test setup. Build, live API and UI were checked; prior test counts above do not cover this update.
+
+### Shared provider update — November 16
+
+All runtime company-specific behavior is removed, including default-stock seeding, issuer website parsing and issuer-only capex mapping. The shared earnings adapter and persistent bulk cache are implemented but require ALPHAVANTAGE_API_KEY to activate. No fabricated fallback date remains. Some metrics now show unavailable where a standard mapping is absent. data-providers.md supersedes earlier company-specific implementation notes.

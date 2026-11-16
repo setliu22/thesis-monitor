@@ -1,162 +1,181 @@
-"""Earnings-driven refresh: confirmed issuer dates or an explicit estimate window."""
+"""Earnings scheduling from a shared provider, with no issuer-specific behavior."""
 
-import re
 from datetime import datetime, timedelta, timezone, date
 from zoneinfo import ZoneInfo
-from urllib.parse import urljoin, urlparse
-import httpx
-from bs4 import BeautifulSoup
 from sqlalchemy import select
-from .models import Company, Filing, Observation
+from sqlalchemy.exc import IntegrityError
+from uuid import uuid4
+from .models import Company, Filing, Observation, CalendarCache
 from .db import SessionLocal
+from .config import settings
+from .market_data import AlphaVantageCalendar, CalendarError
 
-CACI_HOME = "https://investor.caci.com/"
-MONTHS = {
-    m.lower(): i
-    for i, m in enumerate(
-        [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-        ],
-        1,
+
+def report_loaded(filing, event):
+    return bool(
+        filing
+        and event.get("fiscal_period")
+        and filing.report_date >= event["fiscal_period"]
     )
-}
 
 
-def release_date(html, publication):
-    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
-    match = re.search(
-        r"will release its financial results.{0,300}?(?:Monday|Tuesday|Wednesday|Thursday|Friday),?\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan\.|Feb\.|Mar\.|Apr\.|Aug\.|Sep\.|Oct\.|Nov\.|Dec\.)\s+(\d{1,2})",
-        text,
-        re.I,
-    )
-    if not match:
-        return None
-    month = next(
-        (n for m, n in MONTHS.items() if m.startswith(match[1].lower().rstrip("."))),
-        None,
-    )
-    for year in (publication.year, publication.year + 1):
-        try:
-            candidate = date(year, month, int(match[2]))
-        except (ValueError, TypeError):
-            continue
-        if publication <= candidate <= publication + timedelta(days=90):
-            return candidate
-    return None
+def pending_event(state, current, filing):
+    if state.get("provider") != "alphavantage" or not state.get("date"):
+        return False
+    day = date.fromisoformat(state["date"])
+    return day <= current.date() <= day + timedelta(
+        days=settings.earnings_followup_days
+    ) and not report_loaded(filing, state)
 
 
-def caci_calendar(client):
-    response = client.get(CACI_HOME + "news?l=100")
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
-    candidates = []
-    for a in soup.select("a[href]"):
-        url = urljoin(CACI_HOME, a["href"]).split("?")[0]
-        path = urlparse(url)
-        if path.scheme != "https" or path.hostname != "investor.caci.com":
-            continue
-        match = re.match(r"/(\d{4}-\d{2}-\d{2})-CACI-Schedules-", path.path)
-        if match and url not in [u for _, u in candidates]:
-            candidates.append((date.fromisoformat(match[1]), url))
-    dates = []
-    for publication, url in sorted(candidates, reverse=True)[:2]:
-        response = client.get(url)
-        response.raise_for_status()
-        day = release_date(response.text, publication)
-        if day:
-            dates.append((day, url))
-    return max(dates, default=None)
-
-
-def update_calendar(sessions=SessionLocal, client=None, current=None):
+def update_calendar(sessions=SessionLocal, provider=None, current=None):
     current = current or datetime.now(timezone.utc)
     with sessions() as s:
         targets = [
-            (c.id, c.cik, dict(c.earnings_schedule or {}))
+            (c.id, c.ticker, dict(c.earnings_schedule or {}))
             for c in s.scalars(select(Company))
         ]
-    for identity, cik, state in targets:
-        checked = state.get("checked_at")
-        if checked and current - datetime.fromisoformat(checked) < timedelta(days=1):
-            continue
-        result, error = None, None
-        if int(cik) == 16058:
-            try:
-                if client:
-                    result = caci_calendar(client)
-                else:
-                    with httpx.Client(
-                        timeout=15,
-                        follow_redirects=False,
-                        headers={"User-Agent": "ThesisMonitor/1.0 earnings calendar"},
-                    ) as http:
-                        result = caci_calendar(http)
-            except (httpx.HTTPError, ValueError):
-                error = "Calendar lookup failed; using the estimated reporting window."
-        with sessions.begin() as s:
+    if not targets:
+        return
+    cached = shared_calendar(sessions, provider, current)
+    if cached is None:
+        return
+    events, error, revision = cached
+    due = [
+        (identity, ticker, state)
+        for identity, ticker, state in targets
+        if state.get("provider") != "alphavantage"
+        or state.get("checked_at") != revision
+    ]
+    with sessions.begin() as s:
+        for identity, ticker, previous in due:
             company = s.scalar(
                 select(Company).where(Company.id == identity).with_for_update()
             )
             if not company:
                 continue
             state = dict(company.earnings_schedule or {})
-            state["checked_at"] = current.isoformat()
-            state["error"] = error
+            if state.get("provider") != "alphavantage":
+                state = {"provider": "alphavantage", "status": "unavailable"}
             filing = latest_loaded_report(s, identity)
-            filed = date.fromisoformat(filing.filed) if filing else None
+            pending = pending_event(state, current, filing)
+            if not error:
+                corrections = [
+                    e
+                    for e in events.get(ticker.upper(), [])
+                    if e.get("fiscal_period") == state.get("fiscal_period")
+                    and not report_loaded(filing, e)
+                ]
+                if corrections:
+                    state = dict(max(corrections, key=lambda e: e["date"]))
+                    pending = pending_event(state, current, filing)
+                if not pending:
+                    choices = sorted(
+                        (
+                            e
+                            for e in events.get(ticker.upper(), [])
+                            if date.fromisoformat(e["date"]) >= current.date()
+                            and not report_loaded(filing, e)
+                        ),
+                        key=lambda e: e["date"],
+                    )
+                    state = (
+                        dict(choices[0])
+                        if choices
+                        else {"provider": "alphavantage", "status": "unavailable"}
+                    )
             if (
-                result
-                and result[0] >= current.date() - timedelta(days=30)
-                and (not filed or filed < result[0] - timedelta(days=14))
+                error
+                and state.get("date")
+                and not pending
+                and date.fromisoformat(state["date"]) < current.date()
             ):
-                state.update(
-                    date=result[0].isoformat(), status="confirmed", source=result[1]
-                )
-            elif filed and (
-                not state.get("date")
-                or filed >= date.fromisoformat(state["date"]) - timedelta(days=14)
-                or date.fromisoformat(state["date"])
-                < current.date() - timedelta(days=30)
-            ):
-                state.update(
-                    date=(filed + timedelta(days=91)).isoformat(),
-                    status="estimated",
-                    source="Prior SEC quarterly/annual filing date + 91 days",
-                )
+                state = {"provider": "alphavantage", "status": "unavailable"}
+            state.update(checked_at=revision, error=error)
             company.earnings_schedule = state
+
+
+def shared_calendar(sessions, provider, current):
+    owner = uuid4().hex
+    with sessions.begin() as s:
+        cache = s.scalar(
+            select(CalendarCache)
+            .where(CalendarCache.provider == "alphavantage")
+            .with_for_update()
+        )
+        if cache is None:
+            try:
+                with s.begin_nested():
+                    cache = CalendarCache(provider="alphavantage", payload={})
+                    s.add(cache)
+                    s.flush()
+            except IntegrityError:
+                cache = s.scalar(
+                    select(CalendarCache)
+                    .where(CalendarCache.provider == "alphavantage")
+                    .with_for_update()
+                )
+        if cache.lease_until and cache.lease_until > current.isoformat():
+            return None
+        key_added = (
+            bool(settings.alphavantage_api_key)
+            and cache.error == "Set ALPHAVANTAGE_API_KEY to enable earnings dates."
+        )
+        if (
+            cache.last_attempt
+            and not cache.owner
+            and not key_added
+            and current - datetime.fromisoformat(cache.last_attempt)
+            < timedelta(hours=settings.calendar_refresh_hours)
+        ):
+            return cache.payload, cache.error, cache.last_attempt
+        cache.owner = owner
+        cache.lease_until = (current + timedelta(seconds=120)).isoformat()
+        cache.last_attempt = current.isoformat()
+    events, error = None, None
+    try:
+        events = (
+            provider or AlphaVantageCalendar(settings.alphavantage_api_key)
+        ).events()
+    except CalendarError as exc:
+        error = str(exc)
+    with sessions.begin() as s:
+        cache = s.scalar(
+            select(CalendarCache)
+            .where(CalendarCache.provider == "alphavantage")
+            .with_for_update()
+        )
+        if cache.owner != owner:
+            return None
+        if events is not None:
+            cache.payload = events
+        cache.error = error
+        cache.owner, cache.lease_until = None, None
+        return cache.payload, cache.error, cache.last_attempt
 
 
 def refresh_due(company, current, latest_filing=None):
     if not company.last_success:
         return True
     state = company.earnings_schedule or {}
-    if not state.get("date"):
+    if state.get("provider") != "alphavantage" or not state.get("date"):
         return False
     day = date.fromisoformat(state["date"])
-    confirmed = state.get("status") == "confirmed"
-    start = datetime.combine(day, datetime.min.time(), ZoneInfo("America/New_York"))
-    start += timedelta(hours=16, minutes=30) if confirmed else -timedelta(days=14)
-    end = start + timedelta(days=30 if confirmed else 44)
-    if not start <= current <= end:
-        return False
-    # The new quarterly filing ends this earnings cycle, even if the calendar is unchanged.
-    if latest_filing and date.fromisoformat(latest_filing.filed) >= day - timedelta(
-        days=14
-    ):
+    # Calendar has a date, not a reliable release time. Start on that date and follow up daily.
+    start = datetime.combine(
+        day, datetime.min.time(), ZoneInfo("America/New_York")
+    ) - timedelta(days=settings.earnings_lead_days)
+    end = datetime.combine(
+        day + timedelta(days=settings.earnings_followup_days + 1),
+        datetime.min.time(),
+        ZoneInfo("America/New_York"),
+    )
+    if not start <= current < end or report_loaded(latest_filing, state):
         return False
     last = company.last_attempt or company.last_success
-    return not last or current - datetime.fromisoformat(last) >= timedelta(days=1)
+    return not last or current - datetime.fromisoformat(last) >= timedelta(
+        hours=settings.financial_refresh_hours
+    )
 
 
 def latest_loaded_report(session, company_id):
@@ -167,6 +186,7 @@ def latest_loaded_report(session, company_id):
             Observation.company_id == Filing.company_id,
             Observation.period_end == Filing.report_date,
             Observation.metric == "revenue",
+            Observation.value.is_not(None),
             Observation.active.is_(True),
         )
         .exists()
@@ -174,8 +194,10 @@ def latest_loaded_report(session, company_id):
     return session.scalar(
         select(Filing)
         .where(
-            Filing.company_id == company_id, Filing.form.in_(["10-Q", "10-K"]), loaded
+            Filing.company_id == company_id,
+            Filing.form.in_(["10-Q", "10-K"]),
+            loaded,
         )
-        .order_by(Filing.filed.desc())
+        .order_by(Filing.report_date.desc(), Filing.filed.desc())
         .limit(1)
     )

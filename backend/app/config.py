@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str = "postgresql+psycopg://thesis:thesis@localhost:5432/thesis"
     sec_user_agent: str = ""
+    alphavantage_api_key: str = ""
+    calendar_refresh_hours: int = Field(default=24, ge=1)
+    financial_refresh_hours: int = Field(default=24, ge=1)
+    earnings_lead_days: int = Field(default=0, ge=0, le=30)
+    earnings_followup_days: int = Field(default=30, ge=1, le=90)
     refresh_seconds: int = Field(default=3600, ge=300)
     lease_seconds: int = Field(default=180, ge=30)
     max_attempts: int = Field(default=3, ge=1, le=10)

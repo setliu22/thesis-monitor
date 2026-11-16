@@ -1,6 +1,6 @@
 # Thesis — Investment Thesis Monitor
 
-A CACI-first workspace for following US companies through SEC filings. Write a thesis, choose the financial changes worth watching, and inspect the filing evidence when a rule triggers.
+A workspace for following US companies through SEC filings. Write a thesis, choose the financial changes worth watching, and inspect the filing evidence when a rule triggers.
 
 **React + TypeScript · FastAPI · PostgreSQL · SQLAlchemy/Alembic · durable Python worker**
 
@@ -18,7 +18,7 @@ Edit `.env` and set `SEC_USER_AGENT` to your name and a **real** contact email. 
 docker compose up --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). CACI is added on first opening. Click **Refresh SEC data**, then write your own thesis and save monitoring rules. Suggested thresholds are examples; none are enabled automatically.
+Open [http://localhost:8080](http://localhost:8080). Your watchlist starts empty. Add the stocks you follow. Click **Refresh SEC data**, then write your own thesis and save monitoring rules. Suggested thresholds are examples; none are enabled automatically.
 
 The migration container runs before API and worker startup. PostgreSQL data persists in a named volume. Keep the worker running for scheduled refreshes. Alerts appear inside the app; there is no email delivery in this version.
 
@@ -33,7 +33,7 @@ API reference: [http://localhost:8000/docs](http://localhost:8000/docs). Health:
 
 ## What works
 
-- Add SEC-listed US tickers, starting with CACI; switch the watchlist on desktop or mobile.
+- Add SEC-listed US tickers, switch the watchlist on desktop or mobile.
 - Save versioned theses and rules for revenue, growth, operating margin, cash flow, capex, net income, diluted EPS, cash, assets, liabilities, equity, and supported long-term-debt balances.
 - Inspect quarterly/annual history, source tags, raw input values, periods, filing accessions, and derivations.
 - Queue refreshes outside HTTP requests; inspect job status, attempts, failures, and data freshness.
@@ -116,3 +116,8 @@ Primary sources: [SEC public APIs](https://www.sec.gov/search-filings/edgar-appl
 ## Always-on deployment and email
 
 The source now includes a transactional email outbox, independent notification dispatcher, hosted password protection, and a Render Blueprint for the web app, SEC worker, email worker and managed PostgreSQL. See [hosting-and-email.md](docs/hosting-and-email.md) for activation and failure semantics. These services have **not** been provisioned. Email needs a Resend API key and verified sender. Closing the browser does not stop workers; turning off the laptop still stops a local deployment.
+
+
+## Shared earnings calendar
+
+Set ALPHAVANTAGE_API_KEY in server .env or hosting secrets. The worker downloads Alpha Vantage's earnings calendar once per configured calendar interval and matches all watchlist tickers against the same response. No issuer scraper or date arithmetic is used. Provider dates are estimates, not claimed issuer confirmations. Without a key or a covered event, the next date is unavailable; initial imports and manual refresh continue to work. SEC EDGAR remains the financial statement source. Unsupported XBRL mappings remain unavailable for every issuer equally.

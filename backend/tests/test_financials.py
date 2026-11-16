@@ -156,29 +156,18 @@ def test_later_reported_quarter_replaces_older_ytd_derivation():
     assert selected["sources"][0]["accn"] == "restatement"
 
 
-def test_caci_capex_mapping_uses_filing_verified_productive_assets_tag():
+def test_broad_productive_assets_tag_is_not_assumed_to_be_capex():
     data = payload(
         NetCashProvidedByUsedInOperatingActivities=[
-            fact(161314000, "2026-07-01", "2026-09-30", filed="2026-10-22")
+            fact(160, "2026-07-01", "2026-09-30", filed="2026-10-22")
         ],
         PaymentsToAcquireProductiveAssets=[
-            fact(11359000, "2026-07-01", "2026-09-30", filed="2026-10-22")
+            fact(10, "2026-07-01", "2026-09-30", filed="2026-10-22")
         ],
     )
-    data["cik"] = 16058
-    capex = get(
-        data, "capital_expenditures", "2026-09-30", "quarter", as_of="2026-11-15"
-    )
-    assert capex["value"] == "11359000"
-    assert capex["sources"][0]["tag"] == "PaymentsToAcquireProductiveAssets"
-    assert (
-        get(data, "free_cash_flow", "2026-09-30", "quarter", as_of="2026-11-15")[
-            "value"
-        ]
-        == "149955000"
-    )
-    data["cik"] = 1
-    assert not any(o["metric"] == "capital_expenditures" for o in normalize(data))
+    for issuer in (1, 2):
+        data["cik"] = issuer
+        assert not any(o["metric"] == "capital_expenditures" for o in normalize(data))
 
 
 def test_additional_income_eps_and_balance_sheet_preserve_units_and_periods():

@@ -33,10 +33,6 @@ INSTANT_TAGS = {
 }
 INSTANT_METRICS = set(INSTANT_TAGS) | {"debt"}
 
-# CACI's consolidated cash-flow row is explicitly labeled Capital expenditures.
-# Verified in filing 0001628280-26-066827; do not generalize this broader tag.
-ISSUER_CAPEX = {"16058": ["PaymentsToAcquireProductiveAssets"]}
-
 METRICS = {
     "revenue": "USD",
     "net_income": "USD",
@@ -89,13 +85,6 @@ def source(tag, f):
         "tag": tag,
         "unit": "USD/share" if tag == "EarningsPerShareDiluted" else "USD",
         "value": str(f["val"]),
-        **(
-            {
-                "mapping_note": "CACI labels this consolidated cash-flow row Capital expenditures."
-            }
-            if tag == "PaymentsToAcquireProductiveAssets"
-            else {}
-        ),
     }
 
 
@@ -109,8 +98,6 @@ def normalize(companyfacts: dict, as_of: datetime | None = None) -> list[dict]:
     output = []
     series = {}
     mappings = {metric: list(names) for metric, names in TAGS.items()}
-    cik = str(companyfacts.get("cik", "")).lstrip("0")
-    mappings["capital_expenditures"] += ISSUER_CAPEX.get(cik, [])
     for metric, names in mappings.items():
         candidates = {}
         for priority, tag in enumerate(names):

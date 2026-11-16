@@ -17,7 +17,7 @@ export default function RuleEditor({
     name: '',
     metric: 'revenue_growth',
     operator: 'lt',
-    threshold: '5',
+    threshold: '',
     period_kind: 'quarter',
     enabled: true,
   });
@@ -34,10 +34,10 @@ export default function RuleEditor({
             enabled: rule.enabled,
           }
         : {
-            name: 'Revenue growth floor',
+            name: '',
             metric: 'revenue_growth',
             operator: 'lt',
-            threshold: '5',
+            threshold: '',
             period_kind: 'quarter',
             enabled: true,
           },
@@ -176,7 +176,7 @@ export default function RuleEditor({
             Enable this rule
           </label>
           <div className="form-footer">
-            <span>Suggestion only. Choose a threshold that reflects your thesis.</span>
+            <span>Choose a threshold that reflects your thesis.</span>
             <button className="button primary" disabled={busy}>
               Save rule
             </button>
