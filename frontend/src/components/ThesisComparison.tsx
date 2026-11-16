@@ -66,14 +66,7 @@ export default function ThesisComparison({
     <section className="panel thesis-comparison" aria-label="Thesis comparison">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">THESIS COMPARISON</span>
-          <h2>
-            {!analysis
-              ? 'No comparison yet'
-              : stale
-                ? 'Comparison uses an older thesis'
-                : 'Analysis needs review'}
-          </h2>
+          <h2>Thesis comparison</h2>
         </div>
         {latest && (
           <button
@@ -85,17 +78,15 @@ export default function ThesisComparison({
           </button>
         )}
       </div>
-      <p className="muted">
-        {analysis
-          ? 'The model’s interpretation is unverified. No reliable thesis-impact verdict is available. The changes below are calculated from SEC data.'
-          : 'Save your thesis, then compare it with the latest quarterly or annual filing.'}
-      </p>
+      {!analysis && (
+        <p className="muted">
+          Save your thesis, then compare it with the latest quarterly or annual filing.
+        </p>
+      )}
       {analysis && (
         <>
           <p className="fine-print">
-            {filing?.form} · Reporting period {date(filing?.report_date)} ·{' '}
-            {stale ? 'Earlier thesis' : `Thesis version ${detail.thesis?.version ?? 'unknown'}`} ·
-            Selected excerpts only
+            {filing?.form} · Reporting period {date(filing?.report_date)}
           </p>
           {changes.length > 0 ? (
             <ul className="thesis-change-list">
@@ -141,6 +132,12 @@ export default function ThesisComparison({
           )}
           <details className="comparison-evidence">
             <summary>Full model notes and source evidence</summary>
+            <p className="fine-print">
+              {stale
+                ? 'This comparison uses an older thesis.'
+                : `Thesis version ${detail.thesis?.version ?? 'unknown'}`}{' '}
+              · Selected excerpts only
+            </p>
             <p className="error-text">
               These are unverified model notes, not a validated assessment. Supporting quotations
               confirm source text only; they do not establish the interpretation.

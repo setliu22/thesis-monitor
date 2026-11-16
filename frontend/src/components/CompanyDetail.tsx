@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ArrowUpRight, Database, TrendingUp, FileText } from 'lucide-react';
 import { date, format, labels, instantMetrics, statementGroups } from '../api';
 import FinancialHistory from './FinancialHistory';
-import MetricMappings from './MetricMappings';
 import type { Detail } from '../types';
 import Trend from './Trend';
 export { default as Trend } from './Trend';
@@ -58,18 +57,6 @@ export default function CompanyDetail({
       </div>
       {end && (
         <div className="data-summary">
-          <span>
-            {
-              new Set(detail.observations.filter((o) => o.kind === 'quarter').map((o) => o.end))
-                .size
-            }{' '}
-            quarters
-          </span>
-          <span>
-            {new Set(detail.observations.filter((o) => o.kind === 'annual').map((o) => o.end)).size}{' '}
-            fiscal years
-          </span>
-          <span>{detail.filings.length} recent filings</span>
           <a href="#financial-history" className="text-button">
             View financial history ↓
           </a>
@@ -216,7 +203,6 @@ export default function CompanyDetail({
           </div>
         </section>
       )}
-      <MetricMappings companyId={detail.company.id} refreshed={detail.company.last_success} />
       <FinancialHistory observations={detail.observations} kind={kind} />
     </>
   );

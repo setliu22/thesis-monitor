@@ -56,7 +56,7 @@ const detail = {
 } as Detail;
 test('default summary uses calculated direction and hides unverified model notes', () => {
   render(<ThesisComparison detail={detail} busy={false} onAnalyze={() => {}} />);
-  expect(screen.getByRole('heading', { name: 'Analysis needs review' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Thesis comparison' })).toBeVisible();
   expect(screen.getByText(/Operating cash flow decreased 5.7%/)).toBeVisible();
   expect(screen.getByText('Operating cash flow increased')).not.toBeVisible();
   expect(screen.getByText('Net cash provided 161,314 171,065')).not.toBeVisible();
@@ -79,7 +79,7 @@ test('analysis action uses latest filing and marks stale thesis', () => {
       onAnalyze={analyze}
     />,
   );
-  expect(screen.getByRole('heading', { name: 'Comparison uses an older thesis' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Thesis comparison' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Compare latest filing' }));
   expect(analyze).toHaveBeenCalledWith(1);
 });
