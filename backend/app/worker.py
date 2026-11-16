@@ -24,9 +24,12 @@ logger = logging.getLogger("thesis.worker")
 def schedule(sessions=SessionLocal):
     from .events import refresh_events, queue_reminders
 
-    update_calendar(sessions)
-    refresh_events(sessions)
-    queue_reminders(sessions)
+    # Keep independent services progressing when one provider fails.
+    for task in (update_calendar, refresh_events, queue_reminders):
+        try:
+            task(sessions)
+        except Exception:
+            logger.exception("schedule_task_failed: %s", task.__name__)
     if not valid_identity(settings.sec_user_agent):
         return
     with sessions.begin() as s:
@@ -68,7 +71,9 @@ def process_once(sessions=SessionLocal, client=None, owner=None):
             run_analysis_job(sessions, job, owner)
         else:
             raise ValueError("Unknown job kind")
-        finish_job(sessions, job.id, owner)
+        if not finish_job(sessions, job.id, owner):
+            logger.warning("job_completion_discarded: lease lost for job %s", job.id)
+            return True
         logger.info(
             json.dumps(
                 {
@@ -105,15 +110,25 @@ def process_once(sessions=SessionLocal, client=None, owner=None):
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    last_schedule = 0.0
+    stop = threading.Event()
+
+    def scheduler():
+        while not stop.is_set():
+            try:
+                schedule()
+            except Exception:
+                logger.exception("scheduler_failed")
+            stop.wait(60)
+
+    scheduler_thread = threading.Thread(target=scheduler, daemon=True)
+    scheduler_thread.start()
     while True:
         try:
-            if time.monotonic() - last_schedule >= 60:
-                schedule()
-                last_schedule = time.monotonic()
             if not process_once():
                 time.sleep(2)
         except KeyboardInterrupt:
+            stop.set()
+            scheduler_thread.join(timeout=2)
             break
         except Exception:
             logger.exception("worker_loop_failed")

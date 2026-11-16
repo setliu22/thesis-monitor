@@ -41,7 +41,7 @@ def cached_feed(name, loader, hours=24, sessions=SessionLocal):
             cache.last_attempt
             and not cache.owner
             and current - datetime.fromisoformat(cache.last_attempt)
-            < timedelta(hours=hours)
+            < timedelta(hours=min(hours, 1) if cache.error else hours)
         ):
             return cache.payload, cache.error
         cache.owner, cache.lease_until = (

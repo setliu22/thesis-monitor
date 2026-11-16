@@ -172,6 +172,9 @@ class Delivery(Entity):
     first_attempt: Mapped[str | None] = mapped_column(String(40))
     owner: Mapped[str | None] = mapped_column(String(80))
     provider_id: Mapped[str | None] = mapped_column(String(100))
+    receipt_event: Mapped[str | None] = mapped_column(String(40))
+    receipt_next_at: Mapped[str | None] = mapped_column(String(40), index=True)
+    receipt_error: Mapped[str | None] = mapped_column(String(250))
     error: Mapped[str | None] = mapped_column(String(250))
 
 

@@ -126,7 +126,7 @@ def shared_calendar(sessions, provider, current):
             and not cache.owner
             and not key_added
             and current - datetime.fromisoformat(cache.last_attempt)
-            < timedelta(hours=settings.calendar_refresh_hours)
+            < timedelta(hours=1 if cache.error else settings.calendar_refresh_hours)
         ):
             return cache.payload, cache.error, cache.last_attempt
         cache.owner = owner
@@ -156,10 +156,18 @@ def shared_calendar(sessions, provider, current):
 
 def refresh_due(company, current, latest_filing=None):
     if not company.last_success:
-        return True
+        # A failed first import must not create a fresh job every scheduler tick
+        # after the previous job exhausts its own retry budget.
+        return not company.last_attempt or current - datetime.fromisoformat(
+            company.last_attempt
+        ) >= timedelta(hours=settings.financial_refresh_hours)
     state = company.earnings_schedule or {}
     if state.get("provider") != "alphavantage" or not state.get("date"):
-        return False
+        # Missing provider coverage must not permanently freeze financial data.
+        last = company.last_attempt or company.last_success
+        return current - datetime.fromisoformat(last) >= timedelta(
+            hours=settings.unknown_earnings_refresh_hours
+        )
     day = date.fromisoformat(state["date"])
     # Calendar has a date, not a reliable release time. Start on that date and follow up daily.
     start = datetime.combine(

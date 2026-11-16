@@ -1,3 +1,7 @@
+# Current free deployment
+
+The selected deployment is now Render Free web + Neon PostgreSQL + hourly GitHub Actions. Follow [free-deployment.md](free-deployment.md). The paid Blueprint below remains an optional alternative, and has not been provisioned.
+
 # Hosting and email alerts
 
 ## Implemented
@@ -6,7 +10,7 @@ The API, SEC sync worker and email dispatcher run independently of the browser. 
 
 When a rule matches, the alert and email outbox row commit in the same transaction. A dispatcher claims due rows with `FOR UPDATE SKIP LOCKED`, commits its lease, then calls Resend outside the transaction. A crashed process leaves a recoverable two-minute lease. Retries reuse an immutable payload and UUID idempotency key, use exponential delay with jitter, and stop after six attempts. Permanent rejection is retained as failed. After 23 hours from the first attempt, requests become uncertain and require provider reconciliation before any resend. Resend retains idempotency keys for 24 hours: https://resend.com/docs/dashboard/emails/idempotency-keys
 
-Accepted means Resend acknowledged the request. It does not confirm inbox delivery. Bounce/webhook tracking is not implemented. Failed/uncertain deliveries are visible in Alerts; there is deliberately no blind resend button that could duplicate an uncertain email. Old in-app alerts are not backfilled into email. Email is queued only when sender, recipient and API key are configured. New matching observations or rule versions may each generate an alert; this is a condition monitor, not a breach/recovery state machine.
+Accepted means Resend acknowledged the request. It does not confirm inbox delivery. Delivery receipt polling is implemented in the notifier and scheduled runner; see docs/free-deployment.md. Webhooks are not required. Failed/uncertain deliveries are visible in Alerts; there is deliberately no blind resend button that could duplicate an uncertain email. Old in-app alerts are not backfilled into email. Email is queued only when sender, recipient and API key are configured. New matching observations or rule versions may each generate an alert; this is a condition monitor, not a breach/recovery state machine.
 
 ## Activation
 
@@ -34,8 +38,6 @@ Hosting reference: https://render.com/docs/blueprint-spec
 
 Activity and sync history have been removed from navigation. Alerts remain on Overview; operational job records remain in PostgreSQL for troubleshooting. The hourly financial refresh is replaced by daily checks within an earnings window. A company without data still gets its initial import; manual refresh remains available.
 
-For CACI, the worker checks the issuer's latest 100 news releases once a day and reads up to two conference-call scheduling announcements. A parsed issuer release date is labeled confirmed. Until one is available, the prior SEC 10-Q/10-K filing date plus 91 days is explicitly labeled an estimate. Other tickers currently use this estimate; automatic issuer calendar discovery is CACI-specific. Calendar errors retain the prior schedule and an error in the API.
-
-Confirmed dates start refreshes at 4:30 p.m. America/New_York on release day; estimated dates use a window from 14 days before through 30 days after the estimate. SEC data is checked at most daily during the window. Refreshes stop once the new 10-Q/10-K and its revenue observation are both present, so an early submissions entry does not suppress companyfacts follow-up. Dates are recalculated after a new loaded report. If reports remain unavailable after the window, manual refresh is needed; this is not comprehensive monitoring of off-cycle 8-Ks, restatements or every late filing. REFRESH_SECONDS no longer controls automatic financial refresh scheduling.
+Earnings schedules now come from the shared Alpha Vantage calendar for every stock. No issuer-specific scraping or guessed dates remain. Missing dates use the configurable weekly financial-refresh fallback.
 
 For a first email test, sign up for Resend using the alert recipient's address, set EMAIL_FROM=onboarding@resend.dev, and add a sending API key. This default domain only supports test email to the Resend account's own address. Regular sending needs an owned, verified domain. See https://resend.com/docs/knowledge-base/403-error-resend-dev-domain . Never paste the API key into chat; store it in the ignored .env or hosting secrets. API and notifier must be restarted after environment changes. No email was sent during this update.

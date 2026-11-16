@@ -5,8 +5,6 @@ import {
   ArrowUpRight,
   Bell,
   Check,
-  ChevronDown,
-  ChevronRight,
   CircleHelp,
   FileText,
   LayoutDashboard,
@@ -229,9 +227,6 @@ export default function App() {
           </span>
           thesis<span className="brand-period">.</span>
         </a>
-        <div className="workspace-label">
-          PERSONAL WORKSPACE <ChevronDown size={12} />
-        </div>
         <nav aria-label="Main navigation">
           {navigation.map(({ name, icon: Icon }) => (
             <button
@@ -276,22 +271,6 @@ export default function App() {
           ))}
         </div>
         <div className="sidebar-bottom">
-          <div className="source-note">
-            <ShieldCheck size={20} />
-            <strong>SEC EDGAR data</strong>
-            <p>
-              Direct from SEC EDGAR.
-              <br />
-              Source filings linked.
-            </p>
-            <a
-              href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces"
-              target="_blank"
-              rel="noreferrer"
-            >
-              About the data <ArrowUpRight size={13} />
-            </a>
-          </div>
           <button className="nav-item" onClick={() => setShowSettings(true)}>
             <Settings2 size={18} />
             Data settings
@@ -308,7 +287,6 @@ export default function App() {
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumbs">
-            Workspace <ChevronRight size={13} />
             <strong>{view}</strong>
           </div>
           <div className="topbar-right">

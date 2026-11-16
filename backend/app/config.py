@@ -3,12 +3,14 @@ from pydantic import Field
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", ".env.local"), extra="ignore")
     database_url: str = "postgresql+psycopg://thesis:thesis@localhost:5432/thesis"
+    database_url_unpooled: str = ""
     sec_user_agent: str = ""
     alphavantage_api_key: str = ""
     calendar_refresh_hours: int = Field(default=24, ge=1)
     financial_refresh_hours: int = Field(default=24, ge=1)
+    unknown_earnings_refresh_hours: int = Field(default=168, ge=24)
     earnings_lead_days: int = Field(default=0, ge=0, le=30)
     earnings_followup_days: int = Field(default=30, ge=1, le=90)
     refresh_seconds: int = Field(default=3600, ge=300)

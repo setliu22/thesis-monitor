@@ -307,7 +307,6 @@ export default function InvestmentCalendar() {
                       ? 'Statutory date'
                       : 'Published schedule'}
                 </span>
-                <p className="event-description">{e.notes}</p>
                 <a className="text-button" href={e.source_url} target="_blank" rel="noreferrer">
                   View source <ArrowUpRight size={13} />
                 </a>

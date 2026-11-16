@@ -2,8 +2,10 @@ from alembic import context
 from sqlalchemy import create_engine
 from app.config import settings
 
-url = settings.database_url.replace("postgres://", "postgresql+psycopg://", 1).replace(
-    "postgresql://", "postgresql+psycopg://", 1
+url = (
+    (settings.database_url_unpooled or settings.database_url)
+    .replace("postgres://", "postgresql+psycopg://", 1)
+    .replace("postgresql://", "postgresql+psycopg://", 1)
 )
 from app.models import Base
 

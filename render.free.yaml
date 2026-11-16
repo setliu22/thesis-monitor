@@ -1,0 +1,32 @@
+# Web only. Neon PostgreSQL and GitHub Actions supply persistence and scheduling.
+services:
+  - type: web
+    name: thesis-monitor
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerCommand: sh -c 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'
+    healthCheckPath: /ready
+    envVars:
+      - key: PRODUCTION
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: APP_ORIGIN
+        sync: false
+      - key: OWNER_PASSWORD
+        generateValue: true
+      - key: SEC_USER_AGENT
+        sync: false
+      - key: ALPHAVANTAGE_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: ALERT_EMAIL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

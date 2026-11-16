@@ -12,6 +12,8 @@ type DeliveryStatus = {
     status: string;
     attempts: number;
     error: string | null;
+    receipt_event?: string | null;
+    receipt_error?: string | null;
   }[];
 };
 export default function AlertFeed({
@@ -58,11 +60,19 @@ export default function AlertFeed({
           : 'Email delivery status is unavailable.'}
       </p>
       {delivery?.deliveries
-        .filter((d) => d.status === 'failed' || d.status === 'uncertain')
+        .filter(
+          (d) =>
+            d.status === 'failed' ||
+            d.status === 'uncertain' ||
+            d.receipt_error ||
+            ['bounced', 'complained', 'failed', 'suppressed', 'canceled'].includes(
+              d.receipt_event || '',
+            ),
+        )
         .map((d) => (
           <p role="alert" key={d.id}>
             Email {d.event_id ? `reminder #${d.event_id}` : `for alert #${d.alert_id}`}: {d.status}.{' '}
-            {d.error}
+            {d.receipt_event || ''} {d.receipt_error || d.error}
           </p>
         ))}
       {alerts.length === 0 ? (
@@ -91,10 +101,16 @@ export default function AlertFeed({
               Period ended {date(a.evidence.end)} · Rule v{a.evidence.rule_version}
             </p>
             <p className="muted">
-              Email: {delivery?.deliveries.find((d) => d.alert_id === a.id)?.status || 'not queued'}
-              {delivery?.deliveries.find((d) => d.alert_id === a.id)?.status === 'accepted'
-                ? ' by provider (inbox delivery not confirmed)'
-                : ''}
+              Email:{' '}
+              {delivery?.deliveries.find((d) => d.alert_id === a.id)?.receipt_event ||
+                delivery?.deliveries.find((d) => d.alert_id === a.id)?.status ||
+                'not queued'}
+              {delivery?.deliveries.find((d) => d.alert_id === a.id)?.receipt_event === 'delivered'
+                ? ' to recipient mail server'
+                : delivery?.deliveries.find((d) => d.alert_id === a.id)?.status === 'accepted' &&
+                    !delivery?.deliveries.find((d) => d.alert_id === a.id)?.receipt_event
+                  ? ' by provider (delivery not confirmed)'
+                  : ''}
             </p>
             <details>
               <summary>View calculation and sources</summary>

@@ -142,9 +142,97 @@ def deliver_once(sessions=SessionLocal, transport=None):
         if item.owner != owner or item.status != "sending":
             return True
         item.status, item.error, item.provider_id = status, error, provider_id
+        if status == "accepted":
+            item.receipt_next_at = datetime.now(timezone.utc).isoformat()
         item.available_at = (
             datetime.now(timezone.utc) + timedelta(seconds=delay)
         ).isoformat()
+    return True
+
+
+def reconcile_once(sessions=SessionLocal, transport=None):
+    """Read provider receipts without re-sending an email or holding a DB lock over HTTP."""
+    if not configured():
+        return False
+    current = datetime.now(timezone.utc)
+    with sessions.begin() as s:
+        item = s.scalar(
+            select(Delivery)
+            .where(
+                Delivery.status == "accepted",
+                Delivery.provider_id.is_not(None),
+                Delivery.receipt_next_at <= current.isoformat(),
+            )
+            .order_by(Delivery.receipt_next_at, Delivery.id)
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        if not item:
+            return False
+        identity, provider_id = item.id, item.provider_id
+        started = datetime.fromisoformat(item.first_attempt or item.created_at)
+        if current - started >= timedelta(days=7):
+            item.receipt_next_at = None
+            if item.receipt_event not in {
+                "delivered",
+                "opened",
+                "clicked",
+                "bounced",
+                "complained",
+                "failed",
+                "suppressed",
+                "canceled",
+            }:
+                item.receipt_error = "Delivery could not be confirmed within seven days"
+            return True
+        # Also acts as a short claim lease across dispatcher instances.
+        item.receipt_next_at = (current + timedelta(minutes=5)).isoformat()
+        claim = item.receipt_next_at
+    event, error = None, None
+    try:
+        with httpx.Client(
+            timeout=20, transport=transport, follow_redirects=False
+        ) as client:
+            response = client.get(
+                f"https://api.resend.com/emails/{provider_id}",
+                headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("id") != provider_id:
+            raise ValueError("Mismatched provider receipt")
+        event = data.get("last_event")
+        if event not in {
+            "sent",
+            "delivered",
+            "delivery_delayed",
+            "bounced",
+            "complained",
+            "opened",
+            "clicked",
+            "failed",
+            "suppressed",
+            "queued",
+            "scheduled",
+            "canceled",
+        }:
+            raise ValueError("Unknown provider event")
+    except (httpx.HTTPError, ValueError, AttributeError):
+        error = "Receipt lookup failed; check Resend key read permissions and provider availability"
+    with sessions.begin() as s:
+        item = s.scalar(
+            select(Delivery).where(Delivery.id == identity).with_for_update()
+        )
+        if item.provider_id != provider_id or item.receipt_next_at != claim:
+            return True
+        if event:
+            item.receipt_event = event
+        item.receipt_error = error
+        item.receipt_next_at = (
+            None
+            if event in {"bounced", "complained", "failed", "suppressed", "canceled"}
+            else (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        )
     return True
 
 
@@ -152,8 +240,12 @@ def main():
     logging.basicConfig(level=logging.INFO)
     while True:
         try:
-            if not deliver_once():
+            sent = deliver_once()
+            checked = reconcile_once()
+            if not sent and not checked:
                 time.sleep(2)
+            else:
+                time.sleep(1)
         except KeyboardInterrupt:
             break
         except Exception:
