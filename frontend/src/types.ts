@@ -81,6 +81,9 @@ export type Analysis = {
   created_at: string;
   result: {
     scope: string;
+    source_url?: string;
+    review_status?: string;
+    review_notes?: string[];
     observations: { summary: string; quote: string; assessment: string }[];
     rejected_count: number;
   };

@@ -62,3 +62,22 @@ CACI definition remains saved in its company-specific mapping registry.
 References:
 - https://console.groq.com/docs/structured-outputs
 - https://console.groq.com/docs/rate-limits
+
+## Concise comparison view
+
+The latest comparison appears before metrics in Overview and before the collapsed
+filing archive in Filings. The default verdict is “Analysis needs review” because
+model interpretation is not independently validated. At most three year-over-year
+changes (revenue, operating margin, operating cash flow) are calculated from
+normalized SEC observations for the analyzed filing’s period. Period lengths,
+source tags and positive growth denominators must be compatible; margin changes
+use percentage points and permit negative or zero prior margins. Every underlying
+source for both periods is expandable. No model direction/magnitude is promoted
+to this calculated summary.
+
+Raw model observations, assessment labels, quotations and filing links remain in
+collapsed evidence, explicitly marked unverified. Older comparisons and the full
+filing archive are optional details. New analyses persist `review_status=unverified`.
+The existing CACI analysis is retained as `needs_review` with explicit warnings
+about the cash-flow direction and relative cost-growth errors; it was not silently
+corrected or represented as a trustworthy verdict. The saved thesis is unchanged.

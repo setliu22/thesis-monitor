@@ -284,6 +284,10 @@ def run_analysis_job(sessions, job, owner):
         "thesis_version": thesis.version,
         "job_id": job.id,
         "provider": config.provider,
+        "review_status": "unverified",
+        "review_notes": [
+            "Model interpretations have not been independently validated. Quote checks establish provenance only."
+        ],
         "thesis_characters_supplied": min(len(body), GROQ_THESIS_LIMIT),
     }
     with sessions.begin() as s:

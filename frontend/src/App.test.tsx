@@ -23,29 +23,31 @@ function backend() {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, options?: RequestInit) => {
-      let value: unknown = url.startsWith('/api/calendar?')
-        ? { events: [], missing_earnings: [], sources: [] }
-        : url === '/api/reminder-settings'
-          ? {
-              enabled: true,
-              days: [7, 1],
-              categories: ['earnings'],
-              hour: 9,
-              email_configured: true,
-              timezone: 'America/New_York',
-            }
-          : url === '/api/notifications'
-            ? { configured: false, recipient: '', deliveries: [] }
-            : url === '/api/settings'
-              ? {
-                  sec_configured: false,
-                  llm_configured: false,
-                  refresh_seconds: 3600,
-                  metrics: { revenue: 'USD' },
-                }
-              : url === '/api/companies'
-                ? [company]
-                : detail;
+      let value: unknown = url.endsWith('/metric-mappings')
+        ? { mappings: [], attempts: [] }
+        : url.startsWith('/api/calendar?')
+          ? { events: [], missing_earnings: [], sources: [] }
+          : url === '/api/reminder-settings'
+            ? {
+                enabled: true,
+                days: [7, 1],
+                categories: ['earnings'],
+                hour: 9,
+                email_configured: true,
+                timezone: 'America/New_York',
+              }
+            : url === '/api/notifications'
+              ? { configured: false, recipient: '', deliveries: [] }
+              : url === '/api/settings'
+                ? {
+                    sec_configured: false,
+                    llm_configured: false,
+                    refresh_seconds: 3600,
+                    metrics: { revenue: 'USD' },
+                  }
+                : url === '/api/companies'
+                  ? [company]
+                  : detail;
       if (url.endsWith('/thesis') && options?.method === 'PUT')
         value = { version: 1, body: JSON.parse(String(options.body)).body };
       return { ok: true, json: async () => value };
@@ -142,16 +144,18 @@ test('idle dashboard discovers new alerts on its background refresh', async () =
       vi.fn(async (url: string) => ({
         ok: true,
         json: async () =>
-          url === '/api/companies/1'
-            ? updated
-            : url === '/api/companies'
-              ? [company]
-              : {
-                  sec_configured: false,
-                  llm_configured: false,
-                  refresh_seconds: 3600,
-                  metrics: { revenue: 'USD' },
-                },
+          url.endsWith('/metric-mappings')
+            ? { mappings: [], attempts: [] }
+            : url === '/api/companies/1'
+              ? updated
+              : url === '/api/companies'
+                ? [company]
+                : {
+                    sec_configured: false,
+                    llm_configured: false,
+                    refresh_seconds: 3600,
+                    metrics: { revenue: 'USD' },
+                  },
       })),
     );
     await act(async () => {

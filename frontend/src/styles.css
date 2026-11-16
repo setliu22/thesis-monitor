@@ -2395,3 +2395,32 @@ td {
 .statement-history + .statement-history {
   margin-top: 30px;
 }
+
+.thesis-comparison h2 {
+  font-size: 23px;
+}
+.thesis-change-list {
+  padding-left: 20px;
+  margin: 20px 0;
+}
+.thesis-change-list li {
+  margin: 0 0 14px;
+  padding-left: 4px;
+}
+.thesis-change-list p {
+  margin: 0 0 5px;
+  line-height: 1.65;
+}
+.comparison-evidence {
+  margin-top: 20px;
+  border-top: 1px solid #e1e5db;
+  padding-top: 16px;
+}
+.comparison-evidence summary,
+.filing-archive > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.filing-archive[open] > summary {
+  margin-bottom: 22px;
+}

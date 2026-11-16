@@ -1,3 +1,4 @@
+import ThesisComparison from './components/ThesisComparison';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   CalendarDays,
@@ -158,6 +159,17 @@ export default function App() {
     URL.revokeObjectURL(url);
     setMessage('Research brief exported.');
   }
+  const compareFiling = (filingId: number) => {
+    if (!settings?.llm_configured) {
+      setShowSettings(true);
+      return;
+    }
+    act(async () => {
+      await api('/companies/' + selected + '/analyze', 'POST', { filing_id: filingId });
+      await reload();
+      setMessage('Comparison queued against your saved thesis.');
+    });
+  };
   const unread = detail?.alerts.filter((a) => !a.acknowledged_at).length ?? 0;
   const thesisPanel = detail && (
     <section className="panel thesis-panel">
@@ -523,6 +535,11 @@ export default function App() {
                     </div>
                     {view === 'Overview' && (
                       <>
+                        <ThesisComparison
+                          detail={detail}
+                          busy={Boolean(busy || running)}
+                          onAnalyze={compareFiling}
+                        />
                         <CompanyDetail
                           detail={detail}
                           kind={kind}
@@ -587,7 +604,13 @@ export default function App() {
                     )}
                     {view === 'Filings' && (
                       <>
-                        <section className="panel">
+                        <ThesisComparison
+                          detail={detail}
+                          busy={Boolean(busy || running)}
+                          onAnalyze={compareFiling}
+                        />
+                        <details className="panel filing-archive">
+                          <summary>Browse source filings ({detail.filings.length})</summary>
                           <div className="section-heading">
                             <div>
                               <span className="eyebrow">PRIMARY SOURCES</span>
@@ -669,52 +692,7 @@ export default function App() {
                               </table>
                             </div>
                           )}
-                        </section>
-                        <section className="panel">
-                          <div className="section-heading">
-                            <div>
-                              <span className="eyebrow">OPTIONAL ANALYSIS</span>
-                              <h2>Filing analysis</h2>
-                            </div>
-                            <span className="badge neutral">
-                              {settings?.llm_configured ? 'Configured' : 'API key needed'}
-                            </span>
-                          </div>
-                          <p className="muted">
-                            Analysis covers selected filing excerpts. Supporting quotes are checked
-                            against the supplied text; it does not replace reading the full filing.
-                          </p>
-                          {detail.analyses.length === 0 ? (
-                            <p className="fine-print">
-                              Save a thesis, then choose Analyze on a periodic filing. Numeric
-                              monitoring works independently.
-                            </p>
-                          ) : (
-                            detail.analyses.map((a) => (
-                              <article key={a.id} className="analysis-card">
-                                <div className="section-heading">
-                                  <strong>Analysis #{a.id}</strong>
-                                  <span className="quiet-label">
-                                    {a.model} · Thesis record #{a.thesis_id}
-                                  </span>
-                                </div>
-                                <p className="muted">{a.result.scope}</p>
-                                {a.result.observations.map((o, i) => (
-                                  <div key={i}>
-                                    <span className="badge neutral">{o.assessment}</span>
-                                    <p>{o.summary}</p>
-                                    <blockquote>{o.quote}</blockquote>
-                                  </div>
-                                ))}
-                                {a.result.rejected_count > 0 && (
-                                  <p className="fine-print">
-                                    {a.result.rejected_count} unsupported observations withheld.
-                                  </p>
-                                )}
-                              </article>
-                            ))
-                          )}
-                        </section>
+                        </details>
                       </>
                     )}
                   </>
