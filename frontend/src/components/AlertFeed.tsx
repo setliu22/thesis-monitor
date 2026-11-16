@@ -7,7 +7,8 @@ type DeliveryStatus = {
   recipient: string;
   deliveries: {
     id: number;
-    alert_id: number;
+    alert_id: number | null;
+    event_id?: number | null;
     status: string;
     attempts: number;
     error: string | null;
@@ -60,7 +61,8 @@ export default function AlertFeed({
         .filter((d) => d.status === 'failed' || d.status === 'uncertain')
         .map((d) => (
           <p role="alert" key={d.id}>
-            Email for alert #{d.alert_id}: {d.status}. {d.error}
+            Email {d.event_id ? `reminder #${d.event_id}` : `for alert #${d.alert_id}`}: {d.status}.{' '}
+            {d.error}
           </p>
         ))}
       {alerts.length === 0 ? (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
+  CalendarDays,
   ArrowDownToLine,
   ArrowUpRight,
   Bell,
@@ -19,11 +20,14 @@ import {
 } from 'lucide-react';
 import { api, date } from './api';
 import type { Company, Detail, Settings, Rule } from './types';
+import InvestmentCalendar from './components/InvestmentCalendar';
+import CompanySearch, { type SearchResult } from './components/CompanySearch';
 import CompanyDetail from './components/CompanyDetail';
 import RuleEditor, { type RuleDraft } from './components/RuleEditor';
 import AlertFeed from './components/AlertFeed';
-type View = 'Overview' | 'Thesis & rules' | 'Filings';
+type View = 'Calendar' | 'Overview' | 'Thesis & rules' | 'Filings';
 const navigation = [
+  { name: 'Calendar', icon: CalendarDays },
   { name: 'Overview', icon: LayoutDashboard },
   { name: 'Thesis & rules', icon: Target },
   { name: 'Filings', icon: FileText },
@@ -33,7 +37,7 @@ export default function App() {
     [selected, setSelected] = useState<number | null>(null),
     [detail, setDetail] = useState<Detail | null>(null),
     [settings, setSettings] = useState<Settings | null>(null);
-  const [view, setView] = useState<View>('Overview'),
+  const [view, setView] = useState<View>('Calendar'),
     [kind, setKind] = useState('quarter'),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true),
@@ -41,7 +45,6 @@ export default function App() {
     [message, setMessage] = useState('');
   const [showSettings, setShowSettings] = useState(false),
     [showAdd, setShowAdd] = useState(false),
-    [ticker, setTicker] = useState(''),
     [thesis, setThesis] = useState('');
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
@@ -112,6 +115,16 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+  async function addCompany(row: SearchResult) {
+    await act(async () => {
+      const c = await api<Company>('/companies', 'POST', { ticker: row.ticker });
+      await loadCompanies();
+      setSelected(c.id);
+      setShowAdd(false);
+      setView('Overview');
+      setMessage('Company added to your watchlist.');
+    });
   }
   async function saveRule(draft: RuleDraft, key?: string) {
     return await act(async () => {
@@ -242,36 +255,9 @@ export default function App() {
           </button>
         </div>
         {showAdd && (
-          <form
-            className="add-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              act(async () => {
-                const c = await api<Company>('/companies', 'POST', { ticker });
-                await loadCompanies();
-                setSelected(c.id);
-                setTicker('');
-                setShowAdd(false);
-                setMessage('Company added to your watchlist.');
-              });
-            }}
-          >
-            <label className="sr-only" htmlFor="ticker">
-              Company ticker
-            </label>
-            <input
-              autoFocus
-              id="ticker"
-              value={ticker}
-              onChange={(e) => setTicker(e.target.value.toUpperCase())}
-              placeholder="US ticker"
-              required
-              maxLength={12}
-            />
-            <button className="button primary" disabled={busy}>
-              Add
-            </button>
-          </form>
+          <div className="add-form">
+            <CompanySearch disabled={busy} onSelect={addCompany} />
+          </div>
         )}
         <div className="watchlist">
           {companies.map((c) => (
@@ -375,342 +361,352 @@ export default function App() {
             </button>
           </div>
           {showAdd && (
-            <form
-              className="mobile-add-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                act(async () => {
-                  const c = await api<Company>('/companies', 'POST', { ticker });
-                  await loadCompanies();
-                  setSelected(c.id);
-                  setTicker('');
-                  setShowAdd(false);
-                });
-              }}
-            >
-              <label>
-                US ticker
-                <input
-                  value={ticker}
-                  onChange={(e) => setTicker(e.target.value.toUpperCase())}
-                  required
-                  maxLength={12}
-                />
-              </label>
-              <button className="button primary" disabled={busy}>
-                Add to watchlist
-              </button>
-            </form>
-          )}
-          {detail && (
-            <p className="fine-print">
-              {detail.company.earnings_schedule?.date
-                ? `Next earnings: ${date(detail.company.earnings_schedule.date)} · Provider estimate (Alpha Vantage).`
-                : 'Next earnings date unavailable.'}{' '}
-              {detail.company.earnings_schedule?.error ||
-                'Financial data refreshes around the provider date.'}
-            </p>
-          )}
-          <div className="page-heading">
-            <div>
-              <div className="eyebrow">
-                <span className="small-line" /> INVESTMENT MONITOR
-              </div>
-              <h1>
-                {view === 'Overview'
-                  ? 'Watchlist overview'
-                  : view === 'Thesis & rules'
-                    ? 'Thesis & rules'
-                    : 'SEC filings'}
-              </h1>
-              <p>
-                {view === 'Overview'
-                  ? 'Review financial results, filings, and alerts for your watchlist.'
-                  : view === 'Thesis & rules'
-                    ? 'Save your investment thesis and set financial thresholds to monitor.'
-                    : 'View company filings on SEC EDGAR.'}
-              </p>
-            </div>
-            <div className="page-actions">
-              <button className="button secondary" onClick={exportBrief} disabled={!detail}>
-                <ArrowDownToLine size={15} />
-                Export brief
-              </button>
-              <button
-                className="button primary"
-                disabled={busy || running || !detail}
-                onClick={() =>
-                  !settings?.sec_configured
-                    ? setShowSettings(true)
-                    : act(async () => {
-                        await api('/companies/' + selected + '/refresh', 'POST');
-                        await reload();
-                        setMessage('Refresh queued. The worker will process it shortly.');
-                      })
-                }
-              >
-                {running ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{' '}
-                {running ? 'Sync in progress' : 'Refresh SEC data'}
-              </button>
-            </div>
-          </div>
-          {error && (
-            <div className="notice error" role="alert">
-              <span>{error}</span>
-              <button
-                className="icon-button"
-                aria-label="Dismiss error"
-                onClick={() => setError('')}
-              >
-                <X size={16} />
-              </button>
+            <div className="mobile-add-form">
+              <CompanySearch disabled={busy} onSelect={addCompany} />
             </div>
           )}
-          {message && (
-            <div className="notice success" role="status">
-              <Check size={16} />
-              {message}
-            </div>
-          )}
-          {!loading && selected === null && (
-            <section className="panel">
-              <h2>Add a stock to get started</h2>
-              <p>
-                Your watchlist starts empty. Search for a US stock ticker to load its SEC filings.
-              </p>
-              <button className="button primary" onClick={() => setShowAdd(true)}>
-                Add company
-              </button>
-            </section>
-          )}
-          {loading || (selected !== null && !detail && !error) ? (
-            <div className="loading">
-              <LoaderCircle className="spin" />
-              Opening your workspace…
-            </div>
+          {view === 'Calendar' ? (
+            <InvestmentCalendar />
           ) : (
-            detail && (
-              <>
-                <div className="freshness">
-                  <span
-                    className={
-                      'status-dot ' +
-                      (detail.company.data_status === 'current' && !detail.company.stale
-                        ? 'green'
-                        : '')
-                    }
+            <>
+              {detail && (
+                <label className="holding-toggle">
+                  <input
+                    type="checkbox"
+                    checked={detail.company.invested ?? true}
+                    onChange={(e) => {
+                      const invested = e.target.checked;
+                      void act(async () => {
+                        await api('/companies/' + selected + '/holding', 'PUT', { invested });
+                        await loadCompanies();
+                        await reload();
+                      });
+                    }}
                   />
-                  <span>
-                    {detail.company.data_status === 'current' && !detail.company.stale
-                      ? 'Data synced'
-                      : detail.company.data_status === 'pending'
-                        ? 'New filing found · financial facts pending'
-                        : detail.company.last_success
-                          ? 'Data may be stale'
-                          : 'Awaiting first sync'}
-                  </span>
-                  <span className="freshness-divider" />
-                  <span>Last successful sync: {date(detail.company.last_success)}</span>
-                  {detail.company.last_error && (
-                    <span className="error-text">{detail.company.last_error}</span>
-                  )}
-                  <span className="freshness-source">
-                    SEC EDGAR <ArrowUpRight size={12} />
-                  </span>
+                  {(detail.company.invested ?? true) ? 'Invested in this stock' : 'Following only'}
+                </label>
+              )}
+              {detail && (
+                <p className="fine-print">
+                  {detail.company.earnings_schedule?.date
+                    ? `Next earnings: ${date(detail.company.earnings_schedule.date)} · Provider estimate (Alpha Vantage).`
+                    : 'Next earnings date unavailable.'}{' '}
+                  {detail.company.earnings_schedule?.error ||
+                    'Financial data refreshes around the provider date.'}
+                </p>
+              )}
+              <div className="page-heading">
+                <div>
+                  <div className="eyebrow">
+                    <span className="small-line" /> INVESTMENT MONITOR
+                  </div>
+                  <h1>
+                    {view === 'Overview'
+                      ? 'Watchlist overview'
+                      : view === 'Thesis & rules'
+                        ? 'Thesis & rules'
+                        : 'SEC filings'}
+                  </h1>
+                  <p>
+                    {view === 'Overview'
+                      ? 'Review financial results, filings, and alerts for your watchlist.'
+                      : view === 'Thesis & rules'
+                        ? 'Save your investment thesis and set financial thresholds to monitor.'
+                        : 'View company filings on SEC EDGAR.'}
+                  </p>
                 </div>
-                {view === 'Overview' && (
+                <div className="page-actions">
+                  <button className="button secondary" onClick={exportBrief} disabled={!detail}>
+                    <ArrowDownToLine size={15} />
+                    Export brief
+                  </button>
+                  <button
+                    className="button primary"
+                    disabled={busy || running || !detail}
+                    onClick={() =>
+                      !settings?.sec_configured
+                        ? setShowSettings(true)
+                        : act(async () => {
+                            await api('/companies/' + selected + '/refresh', 'POST');
+                            await reload();
+                            setMessage('Refresh queued. The worker will process it shortly.');
+                          })
+                    }
+                  >
+                    {running ? (
+                      <LoaderCircle size={15} className="spin" />
+                    ) : (
+                      <RefreshCw size={15} />
+                    )}{' '}
+                    {running ? 'Sync in progress' : 'Refresh SEC data'}
+                  </button>
+                </div>
+              </div>
+              {error && (
+                <div className="notice error" role="alert">
+                  <span>{error}</span>
+                  <button
+                    className="icon-button"
+                    aria-label="Dismiss error"
+                    onClick={() => setError('')}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+              {message && (
+                <div className="notice success" role="status">
+                  <Check size={16} />
+                  {message}
+                </div>
+              )}
+              {!loading && selected === null && (
+                <section className="panel">
+                  <h2>Add a stock to get started</h2>
+                  <p>
+                    Your watchlist starts empty. Search for a US stock ticker to load its SEC
+                    filings.
+                  </p>
+                  <button className="button primary" onClick={() => setShowAdd(true)}>
+                    Add company
+                  </button>
+                </section>
+              )}
+              {loading || (selected !== null && !detail && !error) ? (
+                <div className="loading">
+                  <LoaderCircle className="spin" />
+                  Opening your workspace…
+                </div>
+              ) : (
+                detail && (
                   <>
-                    <CompanyDetail
-                      detail={detail}
-                      kind={kind}
-                      setKind={setKind}
-                      secConfigured={settings?.sec_configured ?? false}
-                      settings={() => setShowSettings(true)}
-                    />
-                    <div className="overview-lower">
-                      <section className="panel thesis-preview">
-                        <span className="eyebrow">YOUR INVESTMENT THESIS</span>
-                        <h2>Investment thesis</h2>
-                        <p>
-                          {detail.thesis?.body ||
-                            'No thesis saved. Add your reasons for owning this stock.'}
-                        </p>
-                        <div className="section-heading">
-                          <span className="quiet-label">
-                            {detail.rules.filter((r) => r.enabled).length} active rules
-                          </span>
-                          <button className="text-button" onClick={() => setView('Thesis & rules')}>
-                            {detail.thesis ? 'Edit thesis & rules' : 'Write your thesis'}{' '}
-                            <ArrowUpRight size={15} />
+                    <div className="freshness">
+                      <span
+                        className={
+                          'status-dot ' +
+                          (detail.company.data_status === 'current' && !detail.company.stale
+                            ? 'green'
+                            : '')
+                        }
+                      />
+                      <span>
+                        {detail.company.data_status === 'current' && !detail.company.stale
+                          ? 'Data synced'
+                          : detail.company.data_status === 'pending'
+                            ? 'New filing found · financial facts pending'
+                            : detail.company.last_success
+                              ? 'Data may be stale'
+                              : 'Awaiting first sync'}
+                      </span>
+                      <span className="freshness-divider" />
+                      <span>Last successful sync: {date(detail.company.last_success)}</span>
+                      {detail.company.last_error && (
+                        <span className="error-text">{detail.company.last_error}</span>
+                      )}
+                      <span className="freshness-source">
+                        SEC EDGAR <ArrowUpRight size={12} />
+                      </span>
+                    </div>
+                    {view === 'Overview' && (
+                      <>
+                        <CompanyDetail
+                          detail={detail}
+                          kind={kind}
+                          setKind={setKind}
+                          secConfigured={settings?.sec_configured ?? false}
+                          settings={() => setShowSettings(true)}
+                        />
+                        <div className="overview-lower">
+                          <section className="panel thesis-preview">
+                            <span className="eyebrow">YOUR INVESTMENT THESIS</span>
+                            <h2>Investment thesis</h2>
+                            <p>
+                              {detail.thesis?.body ||
+                                'No thesis saved. Add your reasons for owning this stock.'}
+                            </p>
+                            <div className="section-heading">
+                              <span className="quiet-label">
+                                {detail.rules.filter((r) => r.enabled).length} active rules
+                              </span>
+                              <button
+                                className="text-button"
+                                onClick={() => setView('Thesis & rules')}
+                              >
+                                {detail.thesis ? 'Edit thesis & rules' : 'Write your thesis'}{' '}
+                                <ArrowUpRight size={15} />
+                              </button>
+                            </div>
+                          </section>
+                          {alertPanel}
+                        </div>
+                      </>
+                    )}
+                    {view === 'Thesis & rules' && (
+                      <>
+                        {thesisPanel}
+                        <RuleEditor rules={detail.rules} busy={busy} save={saveRule} />
+                        <div className="evaluate-bar">
+                          <div>
+                            <strong>Evaluate saved rules</strong>
+                            <p>Evaluate saved rules against the latest stored reporting period.</p>
+                          </div>
+                          <button
+                            className="button primary"
+                            disabled={busy || !detail.rules.some((r) => r.enabled)}
+                            onClick={() =>
+                              act(async () => {
+                                const result = await api<{ created: number }>(
+                                  '/companies/' + selected + '/evaluate',
+                                  'POST',
+                                );
+                                await reload();
+                                setMessage(
+                                  `${result.created} new alert${result.created === 1 ? '' : 's'}. Unavailable metrics cannot trigger alerts.`,
+                                );
+                              })
+                            }
+                          >
+                            Evaluate rules <ArrowUpRight size={15} />
                           </button>
                         </div>
-                      </section>
-                      {alertPanel}
-                    </div>
-                  </>
-                )}
-                {view === 'Thesis & rules' && (
-                  <>
-                    {thesisPanel}
-                    <RuleEditor rules={detail.rules} busy={busy} save={saveRule} />
-                    <div className="evaluate-bar">
-                      <div>
-                        <strong>Evaluate saved rules</strong>
-                        <p>Evaluate saved rules against the latest stored reporting period.</p>
-                      </div>
-                      <button
-                        className="button primary"
-                        disabled={busy || !detail.rules.some((r) => r.enabled)}
-                        onClick={() =>
-                          act(async () => {
-                            const result = await api<{ created: number }>(
-                              '/companies/' + selected + '/evaluate',
-                              'POST',
-                            );
-                            await reload();
-                            setMessage(
-                              `${result.created} new alert${result.created === 1 ? '' : 's'}. Unavailable metrics cannot trigger alerts.`,
-                            );
-                          })
-                        }
-                      >
-                        Evaluate rules <ArrowUpRight size={15} />
-                      </button>
-                    </div>
-                  </>
-                )}
-                {view === 'Filings' && (
-                  <>
-                    <section className="panel">
-                      <div className="section-heading">
-                        <div>
-                          <span className="eyebrow">PRIMARY SOURCES</span>
-                          <h2>Latest company filings.</h2>
-                        </div>
-                        <span className="badge neutral">{detail.filings.length} filings</span>
-                      </div>
-                      {detail.filings.length === 0 ? (
-                        <div className="inline-empty">
-                          <FileText size={27} />
-                          <p>Filings will appear after your first sync.</p>
-                          <span>We follow 10-K, 10-Q, and 8-K disclosures.</span>
-                        </div>
-                      ) : (
-                        <div className="table-wrap">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Form</th>
-                                <th>Filed</th>
-                                <th>Reporting period</th>
-                                <th>Accession</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {detail.filings.map((f) => (
-                                <tr key={f.id}>
-                                  <td>
-                                    <span className="filing-form">{f.form}</span>
-                                  </td>
-                                  <td>{date(f.filed)}</td>
-                                  <td>{f.report_date ? date(f.report_date) : '—'}</td>
-                                  <td>
-                                    <code>{f.accession}</code>
-                                  </td>
-                                  <td>
-                                    <div className="line">
-                                      {f.url && (
-                                        <a
-                                          className="text-button"
-                                          href={f.url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                        >
-                                          Open <ArrowUpRight size={13} />
-                                        </a>
-                                      )}
-                                      {['10-K', '10-Q', '10-K/A', '10-Q/A'].includes(f.form) && (
-                                        <button
-                                          className="text-button"
-                                          disabled={busy || running}
-                                          onClick={() =>
-                                            !settings?.llm_configured
-                                              ? setShowSettings(true)
-                                              : act(async () => {
-                                                  await api(
-                                                    '/companies/' + selected + '/analyze',
-                                                    'POST',
-                                                    { filing_id: f.id },
-                                                  );
-                                                  await reload();
-                                                  setMessage(
-                                                    'Analysis queued against your saved thesis.',
-                                                  );
-                                                })
-                                          }
-                                        >
-                                          Analyze
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </section>
-                    <section className="panel">
-                      <div className="section-heading">
-                        <div>
-                          <span className="eyebrow">OPTIONAL ANALYSIS</span>
-                          <h2>Filing analysis</h2>
-                        </div>
-                        <span className="badge neutral">
-                          {settings?.llm_configured ? 'Configured' : 'API key needed'}
-                        </span>
-                      </div>
-                      <p className="muted">
-                        Analysis covers selected filing excerpts. Supporting quotes are checked
-                        against the supplied text; it does not replace reading the full filing.
-                      </p>
-                      {detail.analyses.length === 0 ? (
-                        <p className="fine-print">
-                          Save a thesis, then choose Analyze on a periodic filing. Numeric
-                          monitoring works independently.
-                        </p>
-                      ) : (
-                        detail.analyses.map((a) => (
-                          <article key={a.id} className="analysis-card">
-                            <div className="section-heading">
-                              <strong>Analysis #{a.id}</strong>
-                              <span className="quiet-label">
-                                {a.model} · Thesis record #{a.thesis_id}
-                              </span>
+                      </>
+                    )}
+                    {view === 'Filings' && (
+                      <>
+                        <section className="panel">
+                          <div className="section-heading">
+                            <div>
+                              <span className="eyebrow">PRIMARY SOURCES</span>
+                              <h2>Latest company filings.</h2>
                             </div>
-                            <p className="muted">{a.result.scope}</p>
-                            {a.result.observations.map((o, i) => (
-                              <div key={i}>
-                                <span className="badge neutral">{o.assessment}</span>
-                                <p>{o.summary}</p>
-                                <blockquote>{o.quote}</blockquote>
-                              </div>
-                            ))}
-                            {a.result.rejected_count > 0 && (
-                              <p className="fine-print">
-                                {a.result.rejected_count} unsupported observations withheld.
-                              </p>
-                            )}
-                          </article>
-                        ))
-                      )}
-                    </section>
+                            <span className="badge neutral">{detail.filings.length} filings</span>
+                          </div>
+                          {detail.filings.length === 0 ? (
+                            <div className="inline-empty">
+                              <FileText size={27} />
+                              <p>Filings will appear after your first sync.</p>
+                              <span>We follow 10-K, 10-Q, and 8-K disclosures.</span>
+                            </div>
+                          ) : (
+                            <div className="table-wrap">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Form</th>
+                                    <th>Filed</th>
+                                    <th>Reporting period</th>
+                                    <th>Accession</th>
+                                    <th>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {detail.filings.map((f) => (
+                                    <tr key={f.id}>
+                                      <td>
+                                        <span className="filing-form">{f.form}</span>
+                                      </td>
+                                      <td>{date(f.filed)}</td>
+                                      <td>{f.report_date ? date(f.report_date) : '—'}</td>
+                                      <td>
+                                        <code>{f.accession}</code>
+                                      </td>
+                                      <td>
+                                        <div className="line">
+                                          {f.url && (
+                                            <a
+                                              className="text-button"
+                                              href={f.url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Open <ArrowUpRight size={13} />
+                                            </a>
+                                          )}
+                                          {['10-K', '10-Q', '10-K/A', '10-Q/A'].includes(
+                                            f.form,
+                                          ) && (
+                                            <button
+                                              className="text-button"
+                                              disabled={busy || running}
+                                              onClick={() =>
+                                                !settings?.llm_configured
+                                                  ? setShowSettings(true)
+                                                  : act(async () => {
+                                                      await api(
+                                                        '/companies/' + selected + '/analyze',
+                                                        'POST',
+                                                        { filing_id: f.id },
+                                                      );
+                                                      await reload();
+                                                      setMessage(
+                                                        'Analysis queued against your saved thesis.',
+                                                      );
+                                                    })
+                                              }
+                                            >
+                                              Analyze
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </section>
+                        <section className="panel">
+                          <div className="section-heading">
+                            <div>
+                              <span className="eyebrow">OPTIONAL ANALYSIS</span>
+                              <h2>Filing analysis</h2>
+                            </div>
+                            <span className="badge neutral">
+                              {settings?.llm_configured ? 'Configured' : 'API key needed'}
+                            </span>
+                          </div>
+                          <p className="muted">
+                            Analysis covers selected filing excerpts. Supporting quotes are checked
+                            against the supplied text; it does not replace reading the full filing.
+                          </p>
+                          {detail.analyses.length === 0 ? (
+                            <p className="fine-print">
+                              Save a thesis, then choose Analyze on a periodic filing. Numeric
+                              monitoring works independently.
+                            </p>
+                          ) : (
+                            detail.analyses.map((a) => (
+                              <article key={a.id} className="analysis-card">
+                                <div className="section-heading">
+                                  <strong>Analysis #{a.id}</strong>
+                                  <span className="quiet-label">
+                                    {a.model} · Thesis record #{a.thesis_id}
+                                  </span>
+                                </div>
+                                <p className="muted">{a.result.scope}</p>
+                                {a.result.observations.map((o, i) => (
+                                  <div key={i}>
+                                    <span className="badge neutral">{o.assessment}</span>
+                                    <p>{o.summary}</p>
+                                    <blockquote>{o.quote}</blockquote>
+                                  </div>
+                                ))}
+                                {a.result.rejected_count > 0 && (
+                                  <p className="fine-print">
+                                    {a.result.rejected_count} unsupported observations withheld.
+                                  </p>
+                                )}
+                              </article>
+                            ))
+                          )}
+                        </section>
+                      </>
+                    )}
                   </>
-                )}
-              </>
-            )
+                )
+              )}
+            </>
           )}
           <footer className="page-footer">
             <span>

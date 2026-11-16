@@ -61,6 +61,20 @@ def deliver_once(sessions=SessionLocal, transport=None):
         )
         if not item:
             return False
+        from .events import reminder_allowed, reminder_send_at
+
+        if not reminder_allowed(s, item, current):
+            item.status, item.error = (
+                "cancelled",
+                "Reminder expired, changed or disabled",
+            )
+            return True
+        due_at = reminder_send_at(s, item)
+        if due_at and due_at > current:
+            item.status = "pending"
+            item.available_at = due_at.isoformat()
+            item.owner = None
+            return True
         # Stop before provider's 24-hour idempotency retention expires.
         if item.first_attempt and current - datetime.fromisoformat(
             item.first_attempt

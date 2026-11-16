@@ -2,57 +2,9 @@ import { useState } from 'react';
 import { ArrowUpRight, Database, TrendingUp, FileText } from 'lucide-react';
 import { date, format, labels, instantMetrics } from '../api';
 import FinancialHistory from './FinancialHistory';
-import type { Detail, Observation } from '../types';
-export function Trend({ points, metric = 'revenue' }: { points: Observation[]; metric?: string }) {
-  const valid = points.filter((p) => p.value !== null).slice(-8);
-  if (valid.length < 2)
-    return <div className="chart-empty">Sync at least two comparable periods to see a trend.</div>;
-  const values = valid.map((p) => Number(p.value));
-  const low =
-      Math.min(...values) -
-      (Math.max(...values) - Math.min(...values) || Math.abs(values[0]) || 1) * 0.1,
-    high =
-      Math.max(...values) +
-      (Math.max(...values) - Math.min(...values) || Math.abs(values[0]) || 1) * 0.1;
-  const range = high - low || 1;
-  const coords = values.map((v, i) => [
-    (i / (values.length - 1)) * 600,
-    150 - ((v - low) / range) * 120,
-  ]);
-  const path = coords.map(([x, y], i) => (i ? 'L' : 'M') + x + ',' + y).join(' ');
-  return (
-    <div className="trend">
-      <svg
-        viewBox="-12 0 624 190"
-        role="img"
-        aria-label={labels[metric] + ' trend by reporting period'}
-      >
-        <defs>
-          <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#a6bd77" stopOpacity=".35" />
-            <stop offset="100%" stopColor="#a6bd77" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[35, 90, 145].map((y) => (
-          <line key={y} x1="0" x2="600" y1={y} y2={y} stroke="#e7ebe6" strokeDasharray="3 5" />
-        ))}
-        <path d={path + ' L600,170 L0,170 Z'} fill="url(#fill)" />
-        <path d={path} fill="none" stroke="#456643" strokeWidth="2.5" />
-        {coords.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke="#456643" strokeWidth="2">
-            <title>
-              {date(valid[i].end)}: {format(valid[i].value, valid[i].unit)}
-            </title>
-          </circle>
-        ))}
-      </svg>
-      <div className="chart-labels">
-        <span>{date(valid[0].end)}</span>
-        <span>{date(valid[valid.length - 1].end)}</span>
-      </div>
-    </div>
-  );
-}
+import type { Detail } from '../types';
+import Trend from './Trend';
+export { default as Trend } from './Trend';
 export default function CompanyDetail({
   detail,
   kind,
@@ -76,20 +28,7 @@ export default function CompanyDetail({
     )
       .filter((o) => o.metric === metric)
       .at(-1);
-  const cards = [
-    'revenue',
-    'revenue_growth',
-    'operating_margin',
-    'net_income',
-    'diluted_eps',
-    'operating_cash_flow',
-    'capital_expenditures',
-    'free_cash_flow',
-    'cash',
-    'debt',
-    'assets',
-    'equity',
-  ];
+  const cards = Object.keys(labels);
   const end = latest('revenue')?.end;
   return (
     <>
@@ -144,13 +83,34 @@ export default function CompanyDetail({
             <button
               className={'metric-card ' + (evidence === key ? 'focused' : '')}
               key={key}
-              onClick={() => setEvidence(evidence === key ? null : key)}
+              onClick={() => {
+                const opening = evidence !== key;
+                setEvidence(opening ? key : null);
+                if (opening)
+                  window.setTimeout(
+                    () =>
+                      document
+                        .getElementById('selected-metric-history')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                    0,
+                  );
+              }}
             >
               <div className="metric-label">
                 {labels[key]}
                 <ArrowUpRight size={15} />
               </div>
               <strong>{format(o?.value, o?.unit)}</strong>
+              <Trend
+                compact
+                count={8}
+                metric={key}
+                points={detail.observations.filter(
+                  (p) =>
+                    p.metric === key && p.kind === (instantMetrics.has(key) ? 'instant' : kind),
+                )}
+              />
+
               <span>{o ? date(o.end) : 'Metric unavailable'}</span>
               {i === 1 && o?.value != null ? (
                 <span className="metric-note">Year over year</span>
@@ -168,13 +128,22 @@ export default function CompanyDetail({
         })}
       </div>
       {evidence && (
-        <section className="panel evidence">
+        <section className="panel evidence" id="selected-metric-history">
           <div className="section-heading">
             <h3>{labels[evidence]} · source evidence</h3>
             <button className="text-button" onClick={() => setEvidence(null)}>
               Close
             </button>
           </div>
+          <Trend
+            metric={evidence}
+            count={1000}
+            points={detail.observations.filter(
+              (p) =>
+                p.metric === evidence &&
+                p.kind === (instantMetrics.has(evidence) ? 'instant' : kind),
+            )}
+          />
           {latest(evidence) ? (
             <>
               <p>
@@ -256,7 +225,7 @@ export default function CompanyDetail({
                 onChange={(e) => setChartMetric(e.target.value)}
               >
                 {Object.entries(labels)
-                  .filter(([key]) => !instantMetrics.has(key))
+
                   .map(([key, label]) => (
                     <option key={key} value={key}>
                       {label}
@@ -265,7 +234,15 @@ export default function CompanyDetail({
               </select>
             </label>
           </div>
-          <Trend points={selected.filter((o) => o.metric === chartMetric)} metric={chartMetric} />
+          <Trend
+            points={detail.observations.filter(
+              (o) =>
+                o.metric === chartMetric &&
+                o.kind === (instantMetrics.has(chartMetric) ? 'instant' : kind),
+            )}
+            metric={chartMetric}
+            count={1000}
+          />
           <p className="fine-print">
             Hover a point for its value. Click a metric above to inspect its source facts.
           </p>

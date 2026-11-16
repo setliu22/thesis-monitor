@@ -23,19 +23,29 @@ function backend() {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, options?: RequestInit) => {
-      let value: unknown =
-        url === '/api/notifications'
-          ? { configured: false, recipient: '', deliveries: [] }
-          : url === '/api/settings'
-            ? {
-                sec_configured: false,
-                llm_configured: false,
-                refresh_seconds: 3600,
-                metrics: { revenue: 'USD' },
-              }
-            : url === '/api/companies'
-              ? [company]
-              : detail;
+      let value: unknown = url.startsWith('/api/calendar?')
+        ? { events: [], missing_earnings: [], sources: [] }
+        : url === '/api/reminder-settings'
+          ? {
+              enabled: true,
+              days: [7, 1],
+              categories: ['earnings'],
+              hour: 9,
+              email_configured: true,
+              timezone: 'America/New_York',
+            }
+          : url === '/api/notifications'
+            ? { configured: false, recipient: '', deliveries: [] }
+            : url === '/api/settings'
+              ? {
+                  sec_configured: false,
+                  llm_configured: false,
+                  refresh_seconds: 3600,
+                  metrics: { revenue: 'USD' },
+                }
+              : url === '/api/companies'
+                ? [company]
+                : detail;
       if (url.endsWith('/thesis') && options?.method === 'PUT')
         value = { version: 1, body: JSON.parse(String(options.body)).body };
       return { ok: true, json: async () => value };
@@ -45,6 +55,7 @@ function backend() {
 test('empty SEC data shows unavailable values and setup action', async () => {
   backend();
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
   expect(await screen.findByRole('heading', { name: 'Watchlist overview' })).toBeInTheDocument();
   expect(await screen.findByText('No SEC data yet')).toBeInTheDocument();
   expect(screen.queryByText('$8.63B')).not.toBeInTheDocument();
@@ -54,6 +65,7 @@ test('empty SEC data shows unavailable values and setup action', async () => {
 test('thesis editor submits the written thesis', async () => {
   backend();
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
   await screen.findByText('No SEC data yet');
   fireEvent.click(screen.getByRole('button', { name: 'Thesis & rules' }));
   const input = screen.getByLabelText('Your investment thesis');
@@ -82,9 +94,12 @@ test('failed rule save keeps the editable form open', async () => {
     ),
   );
   render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
   await screen.findByText('No SEC data yet');
   fireEvent.click(screen.getByRole('button', { name: 'Thesis & rules' }));
   fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
+  fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Growth floor' } });
+  fireEvent.change(screen.getByLabelText(/Threshold/), { target: { value: '5' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save rule' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Database temporarily unavailable');
   expect(screen.getByLabelText('Rule name')).toBeInTheDocument();
@@ -95,6 +110,7 @@ test('idle dashboard discovers new alerts on its background refresh', async () =
   try {
     backend();
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });

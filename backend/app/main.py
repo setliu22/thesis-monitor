@@ -415,6 +415,10 @@ def notifications(s: Session = Depends(get_session)):
     }
 
 
+from .calendar_api import router as calendar_router
+
+app.include_router(calendar_router)
+
 # Production image includes the Vite build. API routes are registered first.
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles

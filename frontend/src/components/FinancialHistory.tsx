@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpRight, X } from 'lucide-react';
 import { date, format, labels } from '../api';
+import Trend from './Trend';
 import type { Observation } from '../types';
 
 const incomeRows = [
@@ -46,7 +47,15 @@ export default function FinancialHistory({
         <tbody>
           {rows.map((metric) => (
             <tr key={metric}>
-              <th scope="row">{labels[metric]}</th>
+              <th scope="row">
+                {labels[metric]}
+                <Trend
+                  compact
+                  metric={metric}
+                  points={values.filter((o) => o.metric === metric)}
+                  count={count}
+                />
+              </th>
               {ends.map((end) => {
                 const o = values.find((o) => o.metric === metric && o.end === end);
                 return (
@@ -136,6 +145,13 @@ export default function FinancialHistory({
           <p>
             {format(inspected.value, inspected.unit)} · {inspected.derivation.replaceAll('_', ' ')}
           </p>
+          <Trend
+            metric={inspected.metric}
+            count={1000}
+            points={observations.filter(
+              (o) => o.metric === inspected.metric && o.kind === inspected.kind,
+            )}
+          />
           {inspected.unavailable_reason && <p className="muted">{inspected.unavailable_reason}</p>}
           {inspected.sources.map((s, i) => (
             <div className="source-row" key={i}>

@@ -22,9 +22,13 @@ logger = logging.getLogger("thesis.worker")
 
 
 def schedule(sessions=SessionLocal):
+    from .events import refresh_events, queue_reminders
+
+    update_calendar(sessions)
+    refresh_events(sessions)
+    queue_reminders(sessions)
     if not valid_identity(settings.sec_user_agent):
         return
-    update_calendar(sessions)
     with sessions.begin() as s:
         for company in s.scalars(select(Company)):
             filing = latest_loaded_report(s, company.id)
@@ -101,9 +105,12 @@ def process_once(sessions=SessionLocal, client=None, owner=None):
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    last_schedule = 0.0
     while True:
         try:
-            schedule()
+            if time.monotonic() - last_schedule >= 60:
+                schedule()
+                last_schedule = time.monotonic()
             if not process_once():
                 time.sleep(2)
         except KeyboardInterrupt:

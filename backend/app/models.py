@@ -36,6 +36,7 @@ class Company(Entity):
     last_success: Mapped[str | None] = mapped_column(String(40))
     last_attempt: Mapped[str | None] = mapped_column(String(40))
     data_status: Mapped[str] = mapped_column(String(30), default="empty")
+    invested: Mapped[bool] = mapped_column(Boolean, default=True)
     last_error: Mapped[str | None] = mapped_column(Text)
     earnings_schedule: Mapped[dict] = mapped_column(JSON, default=dict)
 
@@ -155,7 +156,14 @@ Index("ix_jobs_due", Job.status, Job.available_at)
 
 class Delivery(Entity):
     __tablename__ = "deliveries"
-    alert_id: Mapped[int] = mapped_column(ForeignKey("alerts.id"), unique=True)
+    alert_id: Mapped[int | None] = mapped_column(ForeignKey("alerts.id"), unique=True)
+    event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("market_events.id"), index=True
+    )
+    event_revision: Mapped[str | None] = mapped_column(String(64))
+    reminder_days: Mapped[int | None] = mapped_column(Integer)
+    reminder_key: Mapped[str | None] = mapped_column(String(100), unique=True)
+    expires_at: Mapped[str | None] = mapped_column(String(40))
     key: Mapped[str] = mapped_column(String(80), unique=True)
     payload: Mapped[dict] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(20), default="pending")
@@ -178,3 +186,40 @@ class CalendarCache(Entity):
     error: Mapped[str | None] = mapped_column(Text)
     owner: Mapped[str | None] = mapped_column(String(80))
     lease_until: Mapped[str | None] = mapped_column(String(40))
+
+
+class MarketEvent(Entity):
+    __tablename__ = "market_events"
+    key: Mapped[str] = mapped_column(String(250), unique=True)
+    provider: Mapped[str] = mapped_column(String(40), index=True)
+    category: Mapped[str] = mapped_column(String(30), index=True)
+    title: Mapped[str] = mapped_column(String(250))
+    day: Mapped[str] = mapped_column(String(10), index=True)
+    starts_at: Mapped[str | None] = mapped_column(String(40))
+    source_url: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="scheduled")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    revision: Mapped[str] = mapped_column(String(64))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    company_id: Mapped[int | None] = mapped_column(
+        ForeignKey("companies.id"), index=True
+    )
+
+
+class ReminderSettings(Base):
+    __tablename__ = "reminder_settings"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    days: Mapped[list] = mapped_column(JSON, default=lambda: [7, 1])
+    categories: Mapped[list] = mapped_column(
+        JSON,
+        default=lambda: [
+            "earnings",
+            "fed",
+            "inflation",
+            "employment",
+            "gdp",
+            "election",
+        ],
+    )
+    hour: Mapped[int] = mapped_column(Integer, default=9)

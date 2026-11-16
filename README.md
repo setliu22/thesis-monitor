@@ -121,3 +121,7 @@ The source now includes a transactional email outbox, independent notification d
 ## Shared earnings calendar
 
 Set ALPHAVANTAGE_API_KEY in server .env or hosting secrets. The worker downloads Alpha Vantage's earnings calendar once per configured calendar interval and matches all watchlist tickers against the same response. No issuer scraper or date arithmetic is used. Provider dates are estimates, not claimed issuer confirmations. Without a key or a covered event, the next date is unavailable; initial imports and manual refresh continue to work. SEC EDGAR remains the financial statement source. Unsupported XBRL mappings remain unavailable for every issuer equally.
+
+## Calendar, reminders, company search and charts
+
+The app opens to the investment calendar. It combines saved-stock earnings with sourced Fed/BEA/BLS schedules and statutory federal election dates, with source status and coverage notes. Event emails default to one week and one day before at 09:00 Eastern; edit these in Calendar → Reminders. Add company searches names and tickers. Every supported metric has a historical graph and source evidence. See [calendar-search-charts.md](docs/calendar-search-charts.md) for current coverage, the blocked BLS source, reminder semantics and verification limits.

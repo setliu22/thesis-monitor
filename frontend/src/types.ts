@@ -1,4 +1,5 @@
 export type Company = {
+  invested?: boolean;
   earnings_schedule?: { date?: string; status?: string; source?: string; error?: string | null };
   id: number;
   ticker: string;
