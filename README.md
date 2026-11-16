@@ -12,7 +12,7 @@ Install Docker Desktop (including Compose), then from this directory:
 cp .env.example .env
 ```
 
-Edit `.env` and set `SEC_USER_AGENT` to your name and a **real** contact email. Leave `OPENAI_API_KEY` empty unless you want optional model analysis. Do not commit `.env`.
+Edit `.env` and set `SEC_USER_AGENT` to your name and a **real** contact email. Leave `GROQ_API_KEY` empty unless you want optional model analysis. Do not commit `.env`.
 
 ```sh
 docker compose up --build
@@ -96,7 +96,7 @@ Without `TEST_DATABASE_URL`, backend tests use temporary SQLite databases; the P
 - **New filing, missing metrics:** submissions may appear before XBRL facts. The app shows pending status and retries on later refreshes.
 - **Unavailable metric:** source facts may be absent or lack a compatible comparison period. Click its card for the reason; missing data cannot trigger a numeric rule.
 - **No alert:** save an enabled rule, select the intended period, then evaluate. A threshold must actually be met. Existing alerts are deduplicated per rule version and observation.
-- **Optional analysis unavailable:** set `OPENAI_API_KEY` and an account-supported `LLM_MODEL`, restart services, save a thesis, then choose Analyze on a 10-K or 10-Q. Requests can incur provider charges. Selected excerpts and your thesis are sent only when an analysis job is requested.
+- **Optional analysis unavailable:** set `GROQ_API_KEY` and an account-supported `GROQ_MODEL`, restart services, save a thesis, then choose Analyze on a 10-K or 10-Q. Requests can incur provider charges. Selected excerpts and your thesis are sent only when an analysis job is requested.
 - **Stale data:** the last successful dataset stays visible after a failed refresh; errors appear in the activity feed.
 
 This is a single-user local app. Default database credentials are local development credentials, services bind to loopback, and there is no login. Add authentication and deployment-specific secrets/network controls before hosting it publicly.

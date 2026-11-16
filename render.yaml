@@ -13,6 +13,10 @@ services:
         fromDatabase:
           name: thesis-monitor-db
           property: connectionString
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
       - key: ALPHAVANTAGE_API_KEY
         sync: false
       - key: SEC_USER_AGENT
@@ -45,6 +49,16 @@ services:
           name: thesis-monitor
           type: web
           envVarKey: ALPHAVANTAGE_API_KEY
+      - key: GROQ_API_KEY
+        fromService:
+          name: thesis-monitor
+          type: web
+          envVarKey: GROQ_API_KEY
+      - key: GROQ_MODEL
+        fromService:
+          name: thesis-monitor
+          type: web
+          envVarKey: GROQ_MODEL
       - key: SEC_USER_AGENT
         fromService:
           name: thesis-monitor
@@ -88,6 +102,16 @@ services:
           name: thesis-monitor
           type: web
           envVarKey: ALPHAVANTAGE_API_KEY
+      - key: GROQ_API_KEY
+        fromService:
+          name: thesis-monitor
+          type: web
+          envVarKey: GROQ_API_KEY
+      - key: GROQ_MODEL
+        fromService:
+          name: thesis-monitor
+          type: web
+          envVarKey: GROQ_MODEL
       - key: SEC_USER_AGENT
         fromService:
           name: thesis-monitor

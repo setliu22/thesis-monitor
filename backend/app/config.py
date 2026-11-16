@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     lease_seconds: int = Field(default=180, ge=30)
     max_attempts: int = Field(default=3, ge=1, le=10)
     openai_api_key: str = ""
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-20b"
     production: bool = False
     app_origin: str = ""
     owner_password: str = ""

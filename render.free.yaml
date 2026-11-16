@@ -28,5 +28,7 @@ services:
         sync: false
       - key: ALERT_EMAIL
         sync: false
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY
         sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b

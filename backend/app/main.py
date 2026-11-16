@@ -158,7 +158,9 @@ def ready(s: Session = Depends(get_session)):
 def configuration():
     return {
         "sec_configured": valid_identity(settings.sec_user_agent),
-        "llm_configured": bool(settings.openai_api_key),
+        "llm_configured": bool(settings.groq_api_key),
+        "llm_provider": "Groq",
+        "llm_model": settings.groq_model,
         "refresh_seconds": settings.refresh_seconds,
         "metrics": METRICS,
         "calendar_configured": bool(settings.alphavantage_api_key),
@@ -372,9 +374,9 @@ def jobs(s: Session = Depends(get_session)):
 def analyze(company_id: int, data: AnalysisInput, s: Session = Depends(get_session)):
     company_or_404(s, company_id, True)
     require_sec()
-    if not settings.openai_api_key:
+    if not settings.groq_api_key:
         raise HTTPException(
-            409, "Optional analysis needs OPENAI_API_KEY in the server environment"
+            409, "Filing analysis needs GROQ_API_KEY in the server environment"
         )
     filing = s.get(Filing, data.filing_id)
     if (

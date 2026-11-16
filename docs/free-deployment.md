@@ -27,11 +27,11 @@ after inactivity. Keep the source repository private and watch Actions failures.
    `render.yaml`, which provisions paid resources.
 3. Set Render's prompted secrets. `APP_ORIGIN` must be the exact HTTPS service
    URL, without a trailing slash. Retrieve its generated owner password privately.
-   Login username is `owner`. Leave the optional OpenAI key blank if unused.
+   Login username is `owner`. Leave the optional Groq key blank if unused.
    Startup applies Alembic migrations before accepting web traffic.
 4. Add GitHub Actions repository secrets: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `SEC_USER_AGENT`,
    `ALPHAVANTAGE_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `ALERT_EMAIL`,
-   `APP_ORIGIN`, and optionally `OPENAI_API_KEY`. These values must match the
+   `APP_ORIGIN`, and optionally `GROQ_API_KEY`. These values must match the
    web service. Never put them in repository files or workflow source.
 5. Run the Investment monitor workflow manually once. Inspect its conclusion,
    hosted `/ready`, saved companies, rules and calendar before relying on it.

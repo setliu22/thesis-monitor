@@ -757,9 +757,8 @@ export default function App() {
             </p>
             <h3>Optional filing analysis</h3>
             <p>
-              Set <code>OPENAI_API_KEY</code> on the server to enable model observations. Selected
-              filing excerpts and your saved thesis will be sent to the model provider when you
-              request analysis.
+              Set <code>GROQ_API_KEY</code> on the server to enable filing analysis. Selected filing
+              excerpts and your saved thesis will be sent to Groq when you request analysis.
             </p>
             <p className="fine-print">
               Financial data refreshes around earnings. The worker checks for a newly announced date
