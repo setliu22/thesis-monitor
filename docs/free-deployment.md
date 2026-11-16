@@ -73,6 +73,9 @@ Reference: https://resend.com/docs/api-reference/emails/retrieve-email
 Neon production is provisioned and the local app data has been copied into it.
 The private repository is `setliu22/thesis-monitor`; its Investment monitor
 workflow completed successfully on 2026-11-16 (run 43954379371).
-The Render Free form is configured and awaiting secret import/deployment.
+Render Free is deployed at https://thesis-monitor-setliu22.onrender.com.
+Readiness returned HTTP 200, unauthenticated API access returned 401, and
+authenticated company access returned 200 with both saved stocks. The Docker
+command is `sh /app/start.sh`; do not use a quoted compound shell command.
 Resend's current key returns HTTP 401; live email confirmation is blocked until
 an active Full Access key is installed. No setup email has been sent yet.
