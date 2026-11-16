@@ -126,7 +126,12 @@ def calendar(
         and not (c.earnings_schedule or {}).get("date")
     ]
     sources = [
-        {"provider": c.provider, "checked_at": c.last_attempt, "error": c.error}
+        {
+            "provider": c.provider,
+            "checked_at": c.last_attempt,
+            "error": c.error,
+            "source_label": (c.payload or {}).get("source_label"),
+        }
         for c in s.scalars(
             select(CalendarCache).where(
                 CalendarCache.provider.in_(

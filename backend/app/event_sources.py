@@ -2,7 +2,8 @@
 
 import calendar
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 import httpx
 from bs4 import BeautifulSoup
@@ -11,6 +12,14 @@ from .feed_cache import FeedError
 FED = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
 BLS = "https://www.bls.gov/schedule/news_release/bls.ics"
 BEA = "https://www.bea.gov/news/schedule/ics/online-calendar-subscription.ics"
+FRED_CALENDAR = "https://fred.stlouisfed.org/releases/calendar"
+# Provider release identifiers, not inferred event dates.
+BLS_RELEASES = {
+    "10": ("Consumer Price Index", "inflation"),
+    "46": ("Producer Price Index", "inflation"),
+    "50": ("Employment Situation", "employment"),
+    "192": ("Job Openings and Labor Turnover Survey", "employment"),
+}
 ELECTION_SOURCE = "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title2-section7&num=0&edition=prelim"
 
 
@@ -175,7 +184,82 @@ def parse_ics(text, source, provider):
 
 
 def bls_events():
-    return parse_ics(fetch(BLS), BLS, "bls")
+    try:
+        result = parse_ics(fetch(BLS), BLS, "bls")
+        for event in result["events"]:
+            for rid, (title, _) in BLS_RELEASES.items():
+                if event["title"].lower().startswith(title.lower()):
+                    event["key"] = f"bls:release:{rid}:{event['day']}"
+                    break
+        return result
+    except FeedError:
+        return fred_bls_events()
+
+
+def fred_bls_events():
+    current = datetime.now(ZoneInfo("America/New_York")).date()
+    start, end = current - timedelta(days=35), current + timedelta(days=180)
+    events = []
+    for rid, (title, category) in BLS_RELEASES.items():
+        before = len(events)
+        source = (
+            FRED_CALENDAR
+            + "?"
+            + urlencode({"rid": rid, "vs": start.isoformat(), "ve": end.isoformat()})
+        )
+        soup = BeautifulSoup(fetch(source), "html.parser")
+        table = soup.select_one("table.table-standard-theme")
+        if table is None:
+            raise FeedError(
+                "FRED calendar format changed; cached BLS dates are retained."
+            )
+        day = None
+        for row in table.select("tbody tr"):
+            group = row.select_one("td[colspan] span")
+            if group:
+                try:
+                    day = datetime.strptime(
+                        group.get_text(" ", strip=True), "%A %B %d, %Y"
+                    ).date()
+                except ValueError:
+                    day = None
+                continue
+            cells = row.find_all("td", recursive=False)
+            if not day or not start <= day <= end or len(cells) != 2:
+                continue
+            anchor = cells[1].find("a", href=f"/release?rid={rid}")
+            if not anchor:
+                continue
+            starts = None
+            clock = cells[0].get_text(" ", strip=True)
+            if re.fullmatch(r"\d{1,2}:\d{2} [ap]m", clock):
+                dt = datetime.combine(day, datetime.strptime(clock, "%I:%M %p").time())
+                starts = (
+                    dt.replace(tzinfo=ZoneInfo("America/Chicago"))
+                    .astimezone(timezone.utc)
+                    .isoformat()
+                )
+            events.append(
+                dict(
+                    key=f"bls:release:{rid}:{day.isoformat()}",
+                    category=category,
+                    title=title,
+                    day=day.isoformat(),
+                    starts_at=starts,
+                    source_url=source,
+                    status="scheduled",
+                    notes="BLS release date published by FRED. Direct BLS calendar is unavailable.",
+                )
+            )
+        if len(events) == before:
+            raise FeedError(
+                f"FRED supplied no readable {title} dates; cached BLS dates are retained."
+            )
+    if not events:
+        raise FeedError(
+            "No BLS release dates could be read from FRED; cached dates are retained."
+        )
+    return {"events": events, "source_label": "BLS via FRED"}
 
 
 def bea_events():

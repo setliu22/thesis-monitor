@@ -24,7 +24,12 @@ type Event = {
 type Response = {
   events: Event[];
   missing_earnings: { ticker: string; name: string }[];
-  sources: { provider: string; checked_at: string | null; error: string | null }[];
+  sources: {
+    provider: string;
+    checked_at: string | null;
+    error: string | null;
+    source_label?: string | null;
+  }[];
 };
 type Prefs = {
   enabled: boolean;
@@ -347,7 +352,7 @@ export default function InvestmentCalendar() {
         </summary>
         {data?.sources.map((s) => (
           <p key={s.provider}>
-            <strong>{s.provider.replace('events-', '').toUpperCase()}</strong> —{' '}
+            <strong>{s.source_label || s.provider.replace('events-', '').toUpperCase()}</strong> —{' '}
             {s.error || 'Schedule loaded'}
             {s.checked_at
               ? ` · Checked ${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' }).format(new Date(s.checked_at))}`
