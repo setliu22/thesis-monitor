@@ -64,3 +64,22 @@ export const metricUnit = (metric: string) =>
     : metric === 'diluted_eps'
       ? 'USD/share'
       : 'USD';
+
+export const statementGroups = [
+  {
+    title: 'Income statement',
+    metrics: [
+      'revenue',
+      'revenue_growth',
+      'operating_income',
+      'operating_margin',
+      'net_income',
+      'diluted_eps',
+    ],
+  },
+  { title: 'Balance sheet', metrics: ['cash', 'assets', 'liabilities', 'equity', 'debt'] },
+  {
+    title: 'Cash flow statement',
+    metrics: ['operating_cash_flow', 'cash_flow_growth', 'capital_expenditures', 'free_cash_flow'],
+  },
+];

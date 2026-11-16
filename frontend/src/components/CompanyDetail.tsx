@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, Database, TrendingUp, FileText } from 'lucide-react';
-import { date, format, labels, instantMetrics } from '../api';
+import { date, format, labels, instantMetrics, statementGroups } from '../api';
 import FinancialHistory from './FinancialHistory';
 import type { Detail } from '../types';
 import Trend from './Trend';
@@ -27,7 +27,6 @@ export default function CompanyDetail({
     )
       .filter((o) => o.metric === metric)
       .at(-1);
-  const cards = Object.keys(labels);
   const end = latest('revenue')?.end;
   return (
     <>
@@ -75,57 +74,62 @@ export default function CompanyDetail({
           </a>
         </div>
       )}
-      <div className="metric-grid">
-        {cards.map((key, i) => {
-          const o = latest(key);
-          return (
-            <button
-              className={'metric-card ' + (evidence === key ? 'focused' : '')}
-              key={key}
-              onClick={() => {
-                const opening = evidence !== key;
-                setEvidence(opening ? key : null);
-                if (opening)
-                  window.setTimeout(
-                    () =>
-                      document
-                        .getElementById('selected-metric-history')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-                    0,
-                  );
-              }}
-            >
-              <div className="metric-label">
-                {labels[key]}
-                <ArrowUpRight size={15} />
-              </div>
-              <strong>{format(o?.value, o?.unit)}</strong>
-              <Trend
-                compact
-                count={8}
-                metric={key}
-                points={detail.observations.filter(
-                  (p) =>
-                    p.metric === key && p.kind === (instantMetrics.has(key) ? 'instant' : kind),
-                )}
-              />
+      {statementGroups.map((group) => (
+        <section className="statement-metrics" key={group.title} aria-label={group.title}>
+          <h3>{group.title}</h3>
+          <div className="metric-grid">
+            {group.metrics.map((key) => {
+              const o = latest(key);
+              return (
+                <button
+                  className={'metric-card ' + (evidence === key ? 'focused' : '')}
+                  key={key}
+                  onClick={() => {
+                    const opening = evidence !== key;
+                    setEvidence(opening ? key : null);
+                    if (opening)
+                      window.setTimeout(
+                        () =>
+                          document
+                            .getElementById('selected-metric-history')
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                        0,
+                      );
+                  }}
+                >
+                  <div className="metric-label">
+                    {labels[key]}
+                    <ArrowUpRight size={15} />
+                  </div>
+                  <strong>{format(o?.value, o?.unit)}</strong>
+                  <Trend
+                    compact
+                    count={8}
+                    metric={key}
+                    points={detail.observations.filter(
+                      (p) =>
+                        p.metric === key && p.kind === (instantMetrics.has(key) ? 'instant' : kind),
+                    )}
+                  />
 
-              <span>{o ? date(o.end) : 'Metric unavailable'}</span>
-              {i === 1 && o?.value != null ? (
-                <span className="metric-note">Year over year</span>
-              ) : (
-                <span className="metric-note">
-                  {instantMetrics.has(key)
-                    ? 'Balance at reporting date'
-                    : kind === 'quarter'
-                      ? 'Discrete quarter'
-                      : 'Full fiscal year'}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                  <span>{o ? date(o.end) : 'Metric unavailable'}</span>
+                  {key.endsWith('_growth') && o?.value != null ? (
+                    <span className="metric-note">Year over year</span>
+                  ) : (
+                    <span className="metric-note">
+                      {instantMetrics.has(key)
+                        ? 'Balance at reporting date'
+                        : kind === 'quarter'
+                          ? 'Discrete quarter'
+                          : 'Full fiscal year'}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
       {evidence && (
         <section className="panel evidence" id="selected-metric-history">
           <div className="section-heading">

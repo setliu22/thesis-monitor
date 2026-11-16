@@ -1,22 +1,9 @@
 import { useState } from 'react';
 import { ArrowUpRight, X } from 'lucide-react';
-import { date, format, labels } from '../api';
+import { date, format, labels, statementGroups } from '../api';
 import Trend from './Trend';
 import type { Observation } from '../types';
 
-const incomeRows = [
-  'revenue',
-  'revenue_growth',
-  'operating_income',
-  'operating_margin',
-  'net_income',
-  'diluted_eps',
-  'operating_cash_flow',
-  'cash_flow_growth',
-  'capital_expenditures',
-  'free_cash_flow',
-];
-const balanceRows = ['cash', 'debt', 'assets', 'liabilities', 'equity'];
 export default function FinancialHistory({
   observations,
   kind,
@@ -107,27 +94,37 @@ export default function FinancialHistory({
         {kind === 'quarter' ? 'Standalone quarters' : 'Full fiscal years'}. Values in USD; EPS in
         USD per share. Select a value to inspect its sources.
       </p>
-      {periods.length ? (
-        renderTable(incomeRows, periods, flow, 'Financial history')
-      ) : (
-        <div className="inline-empty">
-          <p>No financial history loaded.</p>
-        </div>
-      )}
+      {statementGroups.map((group) => {
+        const isBalance = group.title === 'Balance sheet';
+        const ends = isBalance ? balancePeriods : periods;
+        return (
+          <section className="statement-history" key={group.title} aria-label={group.title}>
+            <h3 className="balance-heading">{group.title}</h3>
+            {isBalance && (
+              <p className="muted">
+                Balances at each reporting date, independent of the quarterly or annual setting.
+              </p>
+            )}
+            {ends.length ? (
+              renderTable(
+                group.metrics,
+                ends,
+                isBalance ? balances : flow,
+                `${group.title} history`,
+              )
+            ) : (
+              <div className="inline-empty">
+                <p>No financial history loaded.</p>
+              </div>
+            )}
+          </section>
+        );
+      })}
       <p className="fine-print">
         * Calculated from compatible year-to-date figures. Free cash flow is operating cash flow
         minus capital expenditures. A dash means the metric is unavailable. Scroll horizontally for
         earlier periods.
       </p>
-      {balancePeriods.length > 0 && (
-        <>
-          <h3 className="balance-heading">Balance sheet</h3>
-          <p className="muted">
-            Balances at each reporting date, independent of the quarterly or annual setting.
-          </p>
-          {renderTable(balanceRows, balancePeriods, balances, 'Balance sheet history')}
-        </>
-      )}
       {inspected && (
         <div className="history-evidence" role="region" aria-label="Selected financial sources">
           <div className="section-heading">
