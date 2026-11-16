@@ -10,4 +10,4 @@ COPY backend/requirements.lock.txt ./
 RUN pip install --no-cache-dir -r requirements.lock.txt
 COPY backend/ ./
 COPY --from=frontend /frontend/dist ./static
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "/app/start.sh"]

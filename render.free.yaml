@@ -5,7 +5,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    dockerCommand: sh -c 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'
+    dockerCommand: sh /app/start.sh
     healthCheckPath: /ready
     envVars:
       - key: PRODUCTION
