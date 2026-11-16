@@ -20,10 +20,7 @@ TAGS = {
     "net_income": ["NetIncomeLoss"],
     "diluted_eps": ["EarningsPerShareDiluted"],
     "operating_cash_flow": ["NetCashProvidedByUsedInOperatingActivities"],
-    "capital_expenditures": [
-        "PaymentsToAcquirePropertyPlantAndEquipment",
-        "PaymentsToAcquireProductiveAssets",
-    ],
+    "capital_expenditures": ["PaymentsToAcquirePropertyPlantAndEquipment"],
 }
 INSTANT_TAGS = {
     "cash": ["CashAndCashEquivalentsAtCarryingValue"],

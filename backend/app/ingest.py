@@ -180,7 +180,8 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
                 m for m in latest.get("mappings", []) if m["id"] not in known
             )
             observations = normalize_mapped(facts, registry)
-            save_registry(s, company_id, registry)
+            if registry.get("mappings") or registry.get("attempts"):
+                save_registry(s, company_id, registry)
             if registry.get("attempts"):
                 snapshot(s, company_id, "mapping_facts", path, facts)
             existing_facts = set(

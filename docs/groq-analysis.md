@@ -21,8 +21,8 @@ the website sleeps. Results appear in Filing analysis. This remains explicitly
 requested analysis; saving a thesis alone does not schedule a comparison, and
 this change does not add automatic thesis-change email alerts.
 
-Only selected filing excerpts (up to 12,000 characters) and the first 4,000 thesis
-characters are supplied to Groq. The output budget is 2,000 tokens. Character
+Only selected filing excerpts (up to 8,000 characters) and the first 4,000 thesis
+characters are supplied to Groq. The output budget is 4,096 tokens, with low reasoning effort for GPT-OSS models and at most six concise observations. Character
 limits reduce usage but do not guarantee compliance with every account's token
 quota. The result's scope states these limits; it is not a full-filing review.
 
@@ -39,11 +39,25 @@ older direct callers. Application routes and workers use Groq exclusively.
 
 ## Verification
 
-Basic Python lint, compilation and frontend build are checked during implementation.
-A read-only review found no important defects. No automated tests were added or
-run. Listing models verifies credentials and model availability; it does not
-establish analysis quality. A real thesis and a requested filing analysis are
-needed to check the complete user flow.
+The CACI failure investigation on November 16, 2026 reproduced completion-token
+exhaustion on a full filing request: finish reason `length`, 2,000 completion
+tokens, 1,478 of them reasoning tokens. A minimal request using the same strict
+schema succeeded. The original HTTP 400 response body was not retained, so its
+exact cause cannot be established retrospectively; token exhaustion is the
+confirmed reproduced failure, not a proven explanation for that earlier status.
+
+The fix increases the completion budget while reducing input and output bounds.
+Provider errors expose only an allowlisted error code, never message prose,
+failed generations, credentials, or thesis content. Regression tests cover request
+budgets, schema bounds, safe errors, incomplete output rejection, and evidence.
+The full backend suite passed: 51 passed, one optional test skipped. Frontend
+production build passed. A single controlled CACI analysis using unchanged thesis
+version 1 completed and persisted six quote-verified observations (job 8,
+analysis 1). This verifies execution and provenance, not investment conclusions.
+
+Tests now clear live provider keys and direct-database overrides. The generic
+productive-assets capex fallback was removed; the independently source-verified
+CACI definition remains saved in its company-specific mapping registry.
 
 References:
 - https://console.groq.com/docs/structured-outputs

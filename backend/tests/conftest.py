@@ -17,3 +17,18 @@ def sessions(tmp_path):
         s.commit()
     yield factory
     engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def isolate_provider_and_migration_settings(monkeypatch):
+    """Tests must never inherit live provider credentials or direct DB overrides."""
+    from app.config import settings
+
+    for field in (
+        "groq_api_key",
+        "openai_api_key",
+        "resend_api_key",
+        "alphavantage_api_key",
+        "database_url_unpooled",
+    ):
+        monkeypatch.setattr(settings, field, "")
