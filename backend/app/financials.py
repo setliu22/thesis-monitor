@@ -20,7 +20,10 @@ TAGS = {
     "net_income": ["NetIncomeLoss"],
     "diluted_eps": ["EarningsPerShareDiluted"],
     "operating_cash_flow": ["NetCashProvidedByUsedInOperatingActivities"],
-    "capital_expenditures": ["PaymentsToAcquirePropertyPlantAndEquipment"],
+    "capital_expenditures": [
+        "PaymentsToAcquirePropertyPlantAndEquipment",
+        "PaymentsToAcquireProductiveAssets",
+    ],
 }
 INSTANT_TAGS = {
     "cash": ["CashAndCashEquivalentsAtCarryingValue"],
@@ -81,11 +84,22 @@ def observation(
 
 
 def source(tag, f):
-    return {k: f.get(k) for k in ("start", "end", "filed", "accn", "form")} | {
-        "tag": tag,
-        "unit": "USD/share" if tag == "EarningsPerShareDiluted" else "USD",
-        "value": str(f["val"]),
-    }
+    note = (
+        {
+            "mapping_note": "Broader capex definition: includes property, plant and equipment, software, and other intangible assets."
+        }
+        if tag == "PaymentsToAcquireProductiveAssets"
+        else {}
+    )
+    return (
+        note
+        | {k: f.get(k) for k in ("start", "end", "filed", "accn", "form")}
+        | {
+            "tag": tag,
+            "unit": "USD/share" if tag == "EarningsPerShareDiluted" else "USD",
+            "value": str(f["val"]),
+        }
+    )
 
 
 def compatible(a, b):

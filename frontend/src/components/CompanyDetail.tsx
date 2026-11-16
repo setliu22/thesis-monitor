@@ -157,6 +157,7 @@ export default function CompanyDetail({
                 <div className="source-row" key={i}>
                   <div>
                     <code>{s.tag}</code>
+                    {s.mapping_note && <p>{s.mapping_note}</p>}
                     <p>
                       {date(s.start)} – {date(s.end)} · Filed {date(s.filed)}
                     </p>
