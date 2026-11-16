@@ -77,5 +77,8 @@ Render Free is deployed at https://thesis-monitor-setliu22.onrender.com.
 Readiness returned HTTP 200, unauthenticated API access returned 401, and
 authenticated company access returned 200 with both saved stocks. The Docker
 command is `sh /app/start.sh`; do not use a quoted compound shell command.
-Resend's current key returns HTTP 401; live email confirmation is blocked until
-an active Full Access key is installed. No setup email has been sent yet.
+The active Resend Full Access key is installed locally and in GitHub; the owner
+confirmed updating Render's environment too. The single authorized setup email
+was sent by hosted workflow run 43955782562 on 2026-11-16. Resend's retrieve
+endpoint reported `delivered`, and the receipt was persisted on delivery row 1.
+This confirms receiving-server acceptance, not inbox placement or reading.
