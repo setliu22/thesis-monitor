@@ -196,7 +196,9 @@ export default function App() {
           required
           maxLength={12000}
           rows={6}
-          placeholder="I own this stock because…\n\nWhat would strengthen this view? What would change my mind?"
+          placeholder={
+            'I own this stock because…\n\nWhat would support my thesis?\nWhat would change my mind?'
+          }
         />
         <div className="form-footer">
           <span>Every saved revision is preserved.</span>
