@@ -1736,31 +1736,28 @@ td {
   margin: 0;
   accent-color: #496345;
 }
-.event-dot {
+.event-marker {
   display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
   flex-shrink: 0;
-  background: #6c8955;
+  stroke-width: 2.5;
 }
-.event-dot.earnings {
-  background: #47643f;
+.event-marker.earnings {
+  color: #166534;
 }
-.event-dot.fed {
-  background: #8b68ac;
+.event-marker.fed {
+  color: #6b21a8;
 }
-.event-dot.inflation {
-  background: #bd8742;
+.event-marker.inflation {
+  color: #9a3412;
 }
-.event-dot.employment {
-  background: #528ea0;
+.event-marker.employment {
+  color: #1e40af;
 }
-.event-dot.gdp {
-  background: #c17064;
+.event-marker.gdp {
+  color: #115e59;
 }
-.event-dot.election {
-  background: #5477b0;
+.event-marker.election {
+  color: #9d174d;
 }
 .calendar-weekdays {
   display: grid;
@@ -1836,38 +1833,54 @@ td {
 .calendar-event {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 9px;
-  line-height: 1.3;
-  padding: 3px 4px;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 4px 5px;
+  border: 1px solid #86b99a;
+  border-left: 3px solid currentColor;
   border-radius: 4px;
-  background: #edf3e7;
-  color: #48603f;
+  background: #dcfce7;
+  color: #14532d;
 }
 .calendar-event span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.calendar-event-short {
+  display: none;
+}
 .calendar-event.fed {
-  background: #f1ebf7;
-  color: #7b5b97;
+  background: #f3e8ff;
+  color: #581c87;
+  border-color: #bd92d9;
 }
 .calendar-event.inflation {
-  background: #fcf3e6;
-  color: #9e7135;
+  background: #ffedd5;
+  color: #7c2d12;
+  border-color: #dba369;
 }
 .calendar-event.employment {
-  background: #eaf4f6;
-  color: #508190;
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-color: #8aaee0;
 }
 .calendar-event.gdp {
-  background: #f9efec;
-  color: #a56558;
+  background: #ccfbf1;
+  color: #134e4a;
+  border-color: #69b7ac;
 }
 .calendar-event.election {
-  background: #edf1fa;
-  color: #516c9a;
+  background: #fce7f3;
+  color: #831843;
+  border-color: #d68db2;
+}
+.calendar-event .event-marker {
+  color: inherit;
+  width: 12px;
+  height: 12px;
 }
 .calendar-cell-events small {
   font-size: 9px;
@@ -2249,7 +2262,7 @@ td {
     font-size: 9px;
   }
   .calendar-cell {
-    min-height: 60px;
+    min-height: 76px;
     padding: 5px 3px;
     gap: 5px;
   }
@@ -2263,23 +2276,26 @@ td {
     padding: 10px 5px;
   }
   .calendar-event {
-    padding: 2px;
-    min-height: 7px;
-    justify-content: center;
-    background: transparent !important;
+    padding: 3px 2px;
+    gap: 2px;
+    min-height: 20px;
+    justify-content: flex-start;
+    border-left-width: 2px;
+    font-size: 8px;
   }
-  .calendar-event span {
+  .calendar-event .calendar-event-name {
     display: none;
   }
-  .calendar-cell-events {
-    flex-direction: row;
-    justify-content: center;
-    gap: 4px;
-    flex-wrap: wrap;
+  .calendar-event .calendar-event-short {
+    display: inline;
   }
-  .event-dot {
-    width: 5px;
-    height: 5px;
+  .calendar-event .event-marker {
+    width: 10px;
+    height: 10px;
+  }
+  .calendar-cell-events {
+    flex-direction: column;
+    gap: 3px;
   }
   .calendar-cell-events small {
     font-size: 7px;

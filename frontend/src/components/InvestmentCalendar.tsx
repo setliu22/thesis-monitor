@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowUpRight, Bell, CalendarDays, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpRight,
+  Bell,
+  CalendarDays,
+  X,
+  DollarSign,
+  Landmark,
+  Flame,
+  BriefcaseBusiness,
+  ChartColumnIncreasing,
+  Vote,
+} from 'lucide-react';
 import { api } from '../api';
 const categories = {
   earnings: 'Earnings',
@@ -10,6 +23,26 @@ const categories = {
   election: 'Elections',
 };
 type Category = keyof typeof categories;
+const categoryIcons = {
+  earnings: DollarSign,
+  fed: Landmark,
+  inflation: Flame,
+  employment: BriefcaseBusiness,
+  gdp: ChartColumnIncreasing,
+  election: Vote,
+};
+const shortLabels = {
+  earnings: 'Earn',
+  fed: 'Fed',
+  inflation: 'Infl',
+  employment: 'Jobs',
+  gdp: 'GDP',
+  election: 'Vote',
+};
+function EventMarker({ category }: { category: Category }) {
+  const Icon = categoryIcons[category];
+  return <Icon className={'event-marker ' + category} size={14} aria-hidden="true" />;
+}
 type Event = {
   id: number;
   title: string;
@@ -223,7 +256,7 @@ export default function InvestmentCalendar() {
                     )
                   }
                 />
-                <i className={'event-dot ' + key} />
+                <EventMarker category={key as Category} />
                 {label}
               </label>
             ))}
@@ -253,8 +286,9 @@ export default function InvestmentCalendar() {
                   <span className="calendar-cell-events">
                     {items.slice(0, 3).map((e) => (
                       <span key={e.id} className={'calendar-event ' + e.category} title={e.title}>
-                        <i className={'event-dot ' + e.category} />
-                        <span>{e.ticker || e.title}</span>
+                        <EventMarker category={e.category} />
+                        <span className="calendar-event-name">{e.ticker || e.title}</span>
+                        <span className="calendar-event-short">{shortLabels[e.category]}</span>
                       </span>
                     ))}
                     {items.length > 3 && <small>+{items.length - 3} more</small>}
@@ -292,7 +326,7 @@ export default function InvestmentCalendar() {
             dayEvents.map((e) => (
               <article key={e.id} className={'agenda-event ' + e.category}>
                 <span className="event-category">
-                  <i className={'event-dot ' + e.category} />
+                  <EventMarker category={e.category} />
                   {categories[e.category]}
                 </span>
                 <h3>{e.title}</h3>
@@ -330,7 +364,7 @@ export default function InvestmentCalendar() {
                       timeZone: 'UTC',
                     }).format(new Date(e.day + 'T00:00:00Z'))}
                   </span>
-                  <i className={'event-dot ' + e.category} />
+                  <EventMarker category={e.category} />
                   <span>{e.title}</span>
                 </button>
               ))
