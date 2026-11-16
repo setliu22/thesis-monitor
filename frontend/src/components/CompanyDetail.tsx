@@ -19,7 +19,6 @@ export default function CompanyDetail({
   settings: () => void;
 }) {
   const [evidence, setEvidence] = useState<string | null>(null);
-  const [chartMetric, setChartMetric] = useState('revenue');
   const selected = detail.observations.filter((o) => o.kind === kind);
   const latest = (metric: string) =>
     (instantMetrics.has(metric)
@@ -181,7 +180,7 @@ export default function CompanyDetail({
           )}
         </section>
       )}
-      {!end ? (
+      {!end && (
         <section className="connect-panel">
           <div className="connect-art">
             <div className="orbit one" />
@@ -209,43 +208,6 @@ export default function CompanyDetail({
               View data setup <ArrowUpRight size={15} />
             </button>
           </div>
-        </section>
-      ) : (
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">METRIC HISTORY</span>
-              <h2>{labels[chartMetric]} history</h2>
-            </div>
-            <label className="chart-selector">
-              Metric
-              <select
-                aria-label="Chart metric"
-                value={chartMetric}
-                onChange={(e) => setChartMetric(e.target.value)}
-              >
-                {Object.entries(labels)
-
-                  .map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          </div>
-          <Trend
-            points={detail.observations.filter(
-              (o) =>
-                o.metric === chartMetric &&
-                o.kind === (instantMetrics.has(chartMetric) ? 'instant' : kind),
-            )}
-            metric={chartMetric}
-            count={1000}
-          />
-          <p className="fine-print">
-            Hover a point for its value. Click a metric above to inspect its source facts.
-          </p>
         </section>
       )}
       <FinancialHistory observations={detail.observations} kind={kind} />
