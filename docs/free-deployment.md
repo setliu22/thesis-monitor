@@ -70,6 +70,9 @@ Reference: https://resend.com/docs/api-reference/emails/retrieve-email
 
 ## Current activation state
 
-Deployment files and receipt code are implemented. Account provisioning,
-secret installation and the live workflow must be completed before claiming
-the system operates with the laptop off. A manifest alone is not deployment.
+Neon production is provisioned and the local app data has been copied into it.
+The private repository is `setliu22/thesis-monitor`; its Investment monitor
+workflow completed successfully on 2026-11-16 (run 43954379371).
+The Render Free form is configured and awaiting secret import/deployment.
+Resend's current key returns HTTP 401; live email confirmation is blocked until
+an active Full Access key is installed. No setup email has been sent yet.
