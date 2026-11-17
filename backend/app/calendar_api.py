@@ -4,7 +4,15 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, inspect
 from sqlalchemy.orm import Session
 from .db import get_session
-from .models import MarketEvent, Company, CalendarCache, ReminderSettings, Delivery
+from .models import (
+    MarketEvent,
+    Company,
+    CalendarCache,
+    ReminderSettings,
+    Delivery,
+    Observation,
+    ThesisVersion,
+)
 from .events import CATEGORIES, preferences
 from .company_search import search_companies
 from .feed_cache import FeedError
@@ -105,6 +113,31 @@ def calendar(
     if (end - start).days < 0 or (end - start).days > 62:
         raise HTTPException(422, "Request at most 62 days")
     companies = {c.id: c for c in s.scalars(select(Company))}
+    from .event_results import company_context
+
+    watched = [
+        c for c in companies.values() if c.watched and (not invested_only or c.invested)
+    ]
+    ids = [c.id for c in watched]
+    facts = (
+        list(
+            s.scalars(
+                select(Observation).where(
+                    Observation.company_id.in_(ids),
+                    Observation.metric.in_(["debt", "cash", "operating_cash_flow"]),
+                )
+            )
+        )
+        if ids
+        else []
+    )
+    theses = {}
+    for t in s.scalars(
+        select(ThesisVersion)
+        .where(ThesisVersion.company_id.in_(ids))
+        .order_by(ThesisVersion.version)
+    ):
+        theses[t.company_id] = t
     events = []
     for event in s.scalars(
         select(MarketEvent)
@@ -120,7 +153,25 @@ def calendar(
             continue
         if invested_only and company and not company.invested:
             continue
-        events.append(record(event) | {"ticker": company.ticker if company else None})
+        outcome = dict(event.outcome or {})
+        if outcome and outcome.get("event_revision") != event.revision:
+            outcome = {
+                "status": "pending",
+                "reason": "The event changed; waiting for its updated result.",
+            }
+        context = (
+            [company_context(event, c, facts, theses.get(c.id)) for c in watched]
+            if outcome.get("status") == "reported"
+            else []
+        )
+        events.append(
+            record(event)
+            | {
+                "ticker": company.ticker if company else None,
+                "outcome": outcome,
+                "company_context": [c for c in context if c],
+            }
+        )
     missing = [
         {"ticker": c.ticker, "name": c.name}
         for c in companies.values()

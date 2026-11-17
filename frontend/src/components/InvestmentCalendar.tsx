@@ -1,3 +1,9 @@
+import EventOutcome, {
+  compactOutcome,
+  outcomeTitle,
+  type Outcome,
+  type CompanyContext,
+} from './EventOutcome';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ChevronLeft,
@@ -53,6 +59,8 @@ type Event = {
   status: string;
   notes: string;
   ticker: string | null;
+  outcome?: Outcome;
+  company_context?: CompanyContext[];
 };
 type Response = {
   events: Event[];
@@ -274,7 +282,13 @@ export default function InvestmentCalendar({
               return (
                 <button
                   key={day}
-                  aria-label={`${dateLabel(day)}, ${items.length} scheduled events`}
+                  aria-label={`${dateLabel(day)}, ${items.length} events. ${items
+                    .slice(0, 3)
+                    .map(
+                      (e) =>
+                        e.title + (outcomeTitle(e.outcome) ? ': ' + outcomeTitle(e.outcome) : ''),
+                    )
+                    .join('. ')}`}
                   aria-pressed={day === selected}
                   className={
                     'calendar-cell ' +
@@ -287,10 +301,23 @@ export default function InvestmentCalendar({
                   <span className="calendar-date">{Number(day.slice(-2))}</span>
                   <span className="calendar-cell-events">
                     {items.slice(0, 3).map((e) => (
-                      <span key={e.id} className={'calendar-event ' + e.category} title={e.title}>
+                      <span
+                        key={e.id}
+                        className={
+                          'calendar-event ' +
+                          e.category +
+                          (compactOutcome(e.outcome) ? ' with-result' : '')
+                        }
+                        title={
+                          e.title + (outcomeTitle(e.outcome) ? ' · ' + outcomeTitle(e.outcome) : '')
+                        }
+                      >
                         <EventMarker category={e.category} />
                         <span className="calendar-event-name">{e.ticker || e.title}</span>
                         <span className="calendar-event-short">{shortLabels[e.category]}</span>
+                        {compactOutcome(e.outcome) && (
+                          <span className="calendar-event-result">{compactOutcome(e.outcome)}</span>
+                        )}
                       </span>
                     ))}
                     {items.length > 3 && <small>+{items.length - 3} more</small>}
@@ -342,12 +369,17 @@ export default function InvestmentCalendar({
                     : 'Date only · Eastern Time'}
                 </p>
                 <span className="badge neutral">
-                  {e.status === 'estimated'
-                    ? 'Estimated date'
-                    : e.status === 'statutory'
-                      ? 'Statutory date'
-                      : 'Published schedule'}
+                  {e.outcome?.status === 'reported'
+                    ? 'Result available'
+                    : e.status === 'estimated'
+                      ? 'Estimated date'
+                      : e.status === 'statutory'
+                        ? 'Statutory date'
+                        : 'Published schedule'}
                 </span>
+                {e.day <= today() && (
+                  <EventOutcome outcome={e.outcome} companies={e.company_context} />
+                )}
                 <a className="text-button" href={e.source_url} target="_blank" rel="noreferrer">
                   View source <ArrowUpRight size={13} />
                 </a>

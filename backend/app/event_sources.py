@@ -141,6 +141,8 @@ def parse_ics(text, source, provider):
             if "gross domestic product" in lower or "gdp" in lower
             else None
         )
+        if lower.startswith(("gross domestic product", "gdp (")):
+            category = "gdp"
         if not category or fields.get("STATUS") == "CANCELLED":
             continue
         raw = fields.get("DTSTART", "")

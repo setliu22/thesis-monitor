@@ -24,9 +24,15 @@ logger = logging.getLogger("thesis.worker")
 
 def schedule(sessions=SessionLocal):
     from .events import refresh_events, queue_reminders
+    from .event_results import refresh_event_results
 
     # Keep independent services progressing when one provider fails.
-    for task in (update_calendar, refresh_events, queue_reminders):
+    for task in (
+        update_calendar,
+        refresh_events,
+        refresh_event_results,
+        queue_reminders,
+    ):
         try:
             task(sessions)
         except Exception:

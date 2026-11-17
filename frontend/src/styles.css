@@ -2446,3 +2446,85 @@ td {
   cursor: pointer;
   color: #657a55;
 }
+
+.calendar-event.with-result {
+  flex-wrap: wrap;
+}
+.calendar-event-result {
+  flex-basis: 100%;
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  padding-left: 18px;
+}
+.event-outcome {
+  margin: 18px 0;
+}
+.event-result-metrics {
+  display: grid;
+  gap: 10px;
+}
+.event-result-metric {
+  border: 1px solid #dce3d5;
+  background: #f7f9f3;
+  border-radius: 7px;
+  padding: 12px;
+}
+.event-result-metric > span {
+  display: block;
+  font-size: 11px;
+  color: #64715c;
+}
+.event-result-metric > strong {
+  display: block;
+  font-size: 22px;
+  margin: 7px 0;
+}
+.event-result-metric p {
+  font-size: 11px;
+  margin: 3px 0;
+}
+.event-result-metric small {
+  color: #7a8574;
+  font-size: 10px;
+}
+.event-result-context {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.event-company-context {
+  border-top: 1px solid #e1e5db;
+  margin-top: 18px;
+  padding-top: 14px;
+}
+.event-company-context h4 {
+  margin: 0 0 12px;
+}
+.event-company-context article + article {
+  margin-top: 18px;
+}
+.event-company-context p,
+.event-company-context li {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.event-company-context ul {
+  padding-left: 15px;
+}
+.event-company-context small {
+  color: #7a8574;
+}
+.event-company-context details,
+.event-result-sources {
+  font-size: 11px;
+  margin-top: 12px;
+}
+.event-outcome summary {
+  cursor: pointer;
+  color: #617850;
+}
+.event-outcome a {
+  margin: 7px 0;
+  display: flex;
+  font-size: 10px;
+}

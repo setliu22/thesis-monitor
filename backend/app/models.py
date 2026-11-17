@@ -195,6 +195,7 @@ class CalendarCache(Entity):
 class MarketEvent(Entity):
     __tablename__ = "market_events"
     key: Mapped[str] = mapped_column(String(250), unique=True)
+    outcome: Mapped[dict] = mapped_column(JSON, default=dict)
     provider: Mapped[str] = mapped_column(String(40), index=True)
     category: Mapped[str] = mapped_column(String(30), index=True)
     title: Mapped[str] = mapped_column(String(250))

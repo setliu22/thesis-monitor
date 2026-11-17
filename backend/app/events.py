@@ -42,16 +42,32 @@ def reconcile(s, provider, events):
     keys = set()
     for data in events:
         data = dict(data)
+        if provider == "bea" and data["title"].lower().startswith(
+            ("gdp (", "gross domestic product")
+        ):
+            data["category"] = "gdp"
         key = data["key"]
         keys.add(key)
         revision = identity(
             {
                 k: data.get(k)
-                for k in ["title", "day", "starts_at", "status", "company_id"]
+                for k in [
+                    "title",
+                    "day",
+                    "starts_at",
+                    "status",
+                    "company_id",
+                    "category",
+                ]
             }
         )
         if key in rows:
             event = rows[key]
+            fields = ["title", "day", "starts_at", "status", "company_id", "category"]
+            if any(getattr(event, field) != data.get(field) for field in fields):
+                event.outcome = {}
+            elif event.outcome:
+                event.outcome = dict(event.outcome) | {"event_revision": revision}
             for k, v in data.items():
                 setattr(event, k, v)
             event.active = True
