@@ -16,7 +16,6 @@ class Settings(BaseSettings):
     refresh_seconds: int = Field(default=3600, ge=300)
     lease_seconds: int = Field(default=180, ge=30)
     max_attempts: int = Field(default=3, ge=1, le=10)
-    openai_api_key: str = ""
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-20b"
     production: bool = False
@@ -25,7 +24,6 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     email_from: str = ""
     alert_email: str = ""
-    llm_model: str = "gpt-4.1-mini"
 
 
 settings = Settings()

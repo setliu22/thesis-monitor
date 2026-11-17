@@ -84,7 +84,7 @@ export type Analysis = {
     source_url?: string;
     review_status?: string;
     review_notes?: string[];
-    observations: { summary: string; quote: string; assessment: string }[];
+    observations: { summary: string; quote: string; thesis_quote?: string; assessment: string }[];
     rejected_count: number;
   };
 };

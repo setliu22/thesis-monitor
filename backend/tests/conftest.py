@@ -26,7 +26,6 @@ def isolate_provider_and_migration_settings(monkeypatch):
 
     for field in (
         "groq_api_key",
-        "openai_api_key",
         "resend_api_key",
         "alphavantage_api_key",
         "database_url_unpooled",

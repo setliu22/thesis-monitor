@@ -153,6 +153,7 @@ export default function ThesisComparison({
             {analysis.result.observations.map((o, i) => (
               <article className="analysis-card" key={i}>
                 <span className="quiet-label">Unverified model assessment: {o.assessment}</span>
+                {o.thesis_quote && <p className="fine-print">Thesis claim: “{o.thesis_quote}”</p>}
                 <p>{o.summary}</p>
                 <blockquote>{o.quote}</blockquote>
                 {sourceUrl && (

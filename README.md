@@ -16,6 +16,8 @@ Cloud scheduled monitoring remains independent of this local launcher.
 Alternatively, run `npm start` from the project root, or double-click
 `Start Thesis Monitor.command`. Run `npm stop` to stop services owned by the launcher.
 Startup logs are private and ignored by Git under `work/local-app/`.
+The macOS app entry point is a native arm64 executable. Rebuild it with
+`scripts/build_macos_launcher.sh` after changing its C source or Info.plist.
 A saved localhost browser bookmark alone cannot start a stopped server; use the app
 launcher. The hosted website does not require starting local services.
 
@@ -54,7 +56,7 @@ API reference: [http://localhost:8000/docs](http://localhost:8000/docs). Health:
 - Queue refreshes outside HTTP requests; inspect job status, attempts, failures, and data freshness.
 - Evaluate saved rules immediately; acknowledge alerts without deleting their evidence.
 - Export a JSON research brief with financial provenance, thesis, rules, filings, and alerts.
-- Optionally analyze bounded filing excerpts against a saved thesis using the OpenAI Responses API. Only observations whose quotes occur in supplied text are shown. Interpretation remains model-generated.
+- Optionally analyze bounded filing excerpts against a saved thesis using Groq. Only observations whose quotes occur in supplied text are shown. Interpretation remains model-generated.
 
 ## Local development
 
@@ -126,7 +128,7 @@ This is a single-user local app. Default database credentials are local developm
 - [Verification record](docs/verification.md)
 - [Implementation decisions and review](docs/decisions-and-review.md)
 
-Primary sources: [SEC public APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces), [SEC access guidance](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).
+Primary sources: [SEC public APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces), [SEC access guidance](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), [Groq structured outputs](https://console.groq.com/docs/structured-outputs).
 
 ## Always-on deployment and email
 

@@ -34,8 +34,9 @@ Existing bounded job retries apply; provider errors are logged without provider
 response bodies or credentials. Stored results identify the provider, requested
 model, thesis version, filing accession, excerpt digest and supplied excerpts.
 
-The previous OpenAI adapter remains callable internally for compatibility with
-older direct callers. Application routes and workers use Groq exclusively.
+The unused OpenAI adapter and configuration fields have been removed. All model
+requests use Groq. The `openai/` model-name prefix and `/openai/v1/` segment in
+Groq’s API URL are Groq identifiers, not calls to OpenAI.
 
 ## Verification
 
@@ -81,3 +82,45 @@ filing archive are optional details. New analyses persist `review_status=unverif
 The existing CACI analysis is retained as `needs_review` with explicit warnings
 about the cash-flow direction and relative cost-growth errors; it was not silently
 corrected or represented as a trustworthy verdict. The saved thesis is unchanged.
+
+## Thesis passage selection (v3)
+
+The full filing's visible text is scanned in overlapping chunks. Hidden inline
+XBRL headers are excluded. Lexical ranking uses the saved thesis, with each claim
+getting a selection turn before filling the 8,000-character passage budget. Source
+chunk offsets and retrieval version are saved with the analysis. This is bounded
+retrieval, not a claim that Groq semantically reads every word of the filing.
+
+The model selects from enumerated passage IDs and thesis-claim IDs. New selections use only related/unclear relevance labels, not supports/challenges investment verdicts. Code attaches
+the original text and checks it against both supplied inputs; the model does not
+transcribe quotations. Relevance, support/challenge classification, and explanations
+remain unverified. Numeric trend claims from tables are disallowed by the prompt;
+Overview continues to use independently calculated SEC changes.
+
+Reproduce the small labeled evaluation without provider calls:
+
+```sh
+PYTHONPATH=backend .venv/bin/python scripts/evaluate_thesis_passages.py
+```
+
+Add `--live --variant revised` to make three bounded Groq checks when real-file
+arguments are supplied (two synthetic cases and one public filing). Optional
+`--real-html PATH --real-thesis PATH` adds the CACI-style real-document case.
+`--case ID` selects one case. Results are saved under ignored `work/` by default.
+The benchmark measures labeled-anchor retrieval and extraction recall, plus a
+negative-case check. It is a small smoke evaluation, not a general accuracy claim;
+returned passages outside the labeled anchor set can still be relevant.
+
+The final live smoke run used a 177,795-character synthetic report, an unrelated
+63,620-character adversarial report, and a 265,215-character CACI FY2026 10-K.
+The revised retriever included both synthetic targets and all three labeled CACI
+anchors; the old retriever included none of the CACI anchors. Groq extracted both
+synthetic targets, returned nothing for the unrelated case, and returned five
+exact-source notes for CACI. Those notes covered one of the three pre-labeled
+anchors (twice with different thesis links); other returned notes can be relevant
+but do not count as labeled-anchor hits. Two target passages were not extracted.
+Thus source copying and retrieval improved, but extraction recall remains limited.
+The baseline prompt's real-document live call failed with json_validate_failed,
+so it has no comparable extraction score. Earlier iterations and failure cases
+are retained in ignored work outputs; no live results were written over the saved
+thesis or existing application analyses.
