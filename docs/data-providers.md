@@ -13,7 +13,7 @@
 
 Get a key at https://www.alphavantage.co/support/#api-key and save ALPHAVANTAGE_API_KEY in ignored .env (or hosting secrets). Restart API and SEC worker. A newly added key bypasses the cached missing-key error. No key is present locally yet; the production provider request has not been validated with an account. No provider subscription or spending was authorized.
 
-Configuration: CALENDAR_REFRESH_HOURS, FINANCIAL_REFRESH_HOURS, EARNINGS_LEAD_DAYS and EARNINGS_FOLLOWUP_DAYS. Defaults are 24, 24, 0 and 30 respectively. These are scheduling policy settings, shared by all issuers.
+Configuration: CALENDAR_REFRESH_HOURS, FINANCIAL_REFRESH_HOURS, EARNINGS_LEAD_DAYS and EARNINGS_FOLLOWUP_DAYS. Defaults are 24, 1, 0 and 30 respectively. Earnings dates are fetched daily. On earnings day (Eastern Time), financial refreshes become eligible hourly until the corresponding SEC report and revenue data are loaded, for up to 30 days. The hourly hosted scheduler is best effort and may run late. These are scheduling policy settings, shared by all issuers.
 
 ## Retired shortcuts
 

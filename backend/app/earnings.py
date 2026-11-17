@@ -169,7 +169,7 @@ def refresh_due(company, current, latest_filing=None):
             hours=settings.unknown_earnings_refresh_hours
         )
     day = date.fromisoformat(state["date"])
-    # Calendar has a date, not a reliable release time. Start on that date and follow up daily.
+    # Calendar has a date, not a reliable release time. Start on that date and follow up hourly until the report is loaded.
     start = datetime.combine(
         day, datetime.min.time(), ZoneInfo("America/New_York")
     ) - timedelta(days=settings.earnings_lead_days)

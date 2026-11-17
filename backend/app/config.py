@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     sec_user_agent: str = ""
     alphavantage_api_key: str = ""
     calendar_refresh_hours: int = Field(default=24, ge=1)
-    financial_refresh_hours: int = Field(default=24, ge=1)
+    financial_refresh_hours: int = Field(default=1, ge=1)
     unknown_earnings_refresh_hours: int = Field(default=168, ge=24)
     earnings_lead_days: int = Field(default=0, ge=0, le=30)
     earnings_followup_days: int = Field(default=30, ge=1, le=90)
