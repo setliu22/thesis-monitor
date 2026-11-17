@@ -1,9 +1,16 @@
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch('/api' + path, {
-    method,
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+  let response: Response;
+  try {
+    response = await fetch('/api' + path, {
+      method,
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+  } catch {
+    throw new Error(
+      'Cannot connect to Thesis Monitor. Open the Thesis Monitor app to start local services, then reload this page.',
+    );
+  }
   const data = await response.json();
   if (!response.ok)
     throw new Error(

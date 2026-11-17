@@ -4,6 +4,21 @@ A workspace for following US companies through SEC filings. Write a thesis, choo
 
 **React + TypeScript · FastAPI · PostgreSQL · SQLAlchemy/Alembic · durable Python worker**
 
+## Open the local app
+
+On this Mac, double-click `Thesis Monitor.app` in the project folder. It starts
+the website, API, background worker, and email process, waits for the database and
+website to respond, then opens the browser. Closing the startup terminal or browser
+does not stop the services. Reopening the app reuses the same supervisor and ports.
+Stopped service processes are restarted automatically while the launcher is running.
+Cloud scheduled monitoring remains independent of this local launcher.
+
+Alternatively, run `npm start` from the project root, or double-click
+`Start Thesis Monitor.command`. Run `npm stop` to stop services owned by the launcher.
+Startup logs are private and ignored by Git under `work/local-app/`.
+A saved localhost browser bookmark alone cannot start a stopped server; use the app
+launcher. The hosted website does not require starting local services.
+
 ## Start locally with Docker
 
 Install Docker Desktop (including Compose), then from this directory:

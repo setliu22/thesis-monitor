@@ -2,5 +2,9 @@
   "dependencies": {
     "@neon/config": "^1.14.1",
     "@neon/env": "^2.1.4"
+  },
+  "scripts": {
+    "start": "python3 scripts/start_local.py",
+    "stop": "python3 scripts/start_local.py --stop"
   }
 }
