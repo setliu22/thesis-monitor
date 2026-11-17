@@ -10,6 +10,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from .config import settings
 from .db import SessionLocal, sec_gate
 from .models import Company
@@ -84,11 +85,16 @@ def process_once(sessions=SessionLocal, client=None, owner=None):
             )
         )
     except Exception as exc:
+        error = (
+            "Database operation failed; no result saved. Retry after the app updates."
+            if isinstance(exc, SQLAlchemyError)
+            else str(exc)
+        )
         fail_job(
             sessions,
             job.id,
             owner,
-            str(exc),
+            error,
             min(300, 30 * 2 ** (job.attempts - 1)),
             settings.max_attempts,
         )
@@ -98,7 +104,7 @@ def process_once(sessions=SessionLocal, client=None, owner=None):
                     "event": "job_failed",
                     "job_id": job.id,
                     "company_id": job.company_id,
-                    "error": str(exc)[:500],
+                    "error": error[:500],
                 }
             )
         )

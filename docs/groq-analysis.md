@@ -124,3 +124,36 @@ The baseline prompt's real-document live call failed with json_validate_failed,
 so it has no comparable extraction score. Earlier iterations and failure cases
 are retained in ignored work outputs; no live results were written over the saved
 thesis or existing application analyses.
+
+## Complete passage review (v4)
+
+The top-six selection step has been replaced with explicit relevance classification
+of every retrieved passage. Each batch contains at most 48 passages, and the
+structured schema requires one claim ID or null per passage ID. Code validates
+exact ID coverage before accepting a batch. Later-batch failure rejects the whole
+analysis; partial results are not saved. There are at most 192 passages and four
+batches. Bounded 429 retries honor short Retry-After values; no provider prose or
+private payloads are included in errors.
+
+This removes highlight selection as a source of omissions and avoids generated
+explanations. Source text and thesis clauses are attached by code. All decisions,
+source units, claim units, and coverage counts are retained for audit. Relevance
+still comes from the model and is not a thesis-impact verdict. Narrative text is
+now prominent in new comparisons; numeric changes and the full matched set remain
+expandable. Old matches are not promoted after the saved thesis changes.
+
+On identical CACI excerpts, the v3 selection prompt returned 2/3 labeled anchors
+with 20B and 0/3 with 120B in the comparison run. With v4, both returned 3/3.
+The final 20B smoke run recovered 3/3 real anchors and 2/2 synthetic anchors,
+with no retained notes for the unrelated/adversarial case (one model selection was
+rejected by the instruction-pattern check). This is still a small development
+sample, not a general accuracy guarantee. Keep 20B as default; the larger model
+was unnecessary on this case. `--model openai/gpt-oss-120b` allows reproducing
+model comparisons without changing application settings.
+
+The application end-to-end check saved analysis 2 from CACI's actual FY2026 10-K:
+49/49 selected passages classified in two batches, 17 source-backed matches, all
+three labeled anchors recovered. Thesis version 1 and its text were unchanged.
+The prompt identifier is `v4-passage-review` to fit the existing VARCHAR(20).
+A regression test now enforces that field limit. Database job errors are sanitized
+rather than exposing SQL parameters in the UI.

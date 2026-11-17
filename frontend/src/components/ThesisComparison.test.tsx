@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { test, expect, vi } from 'vitest';
-import ThesisComparison, { financialChanges } from './ThesisComparison';
+import ThesisComparison, { financialChanges, narrativeHighlights } from './ThesisComparison';
 import type { Detail, Observation } from '../types';
 const observation = (metric: string, value: string, end: string): Observation => ({
   identity: metric + end,
@@ -94,4 +94,60 @@ test('margin changes remain valid when prior margin is negative or zero', () => 
     financialChanges({ ...detail, observations: [current, { ...previous, value: '0' }] }, 1)[0]
       .text,
   ).toContain('increased 2.0 percentage points');
+});
+
+test('new comparisons show exact narrative evidence and collapse numeric detail', () => {
+  const note = {
+    summary: 'Relevant filing passage.',
+    quote: 'The company develops optical communications for satellite constellations.',
+    thesis_quote: 'Satellite communications are central to my thesis.',
+    assessment: 'related',
+  };
+  render(
+    <ThesisComparison
+      detail={{
+        ...detail,
+        analyses: [
+          {
+            ...detail.analyses[0],
+            result: {
+              ...detail.analyses[0].result,
+              selection_method: 'complete_passage_classification',
+              observations: [note],
+            },
+          },
+        ],
+      }}
+      busy={false}
+      onAnalyze={() => {}}
+    />,
+  );
+  expect(screen.getByRole('heading', { name: 'From the filing' })).toBeVisible();
+  expect(
+    screen
+      .getAllByText(note.quote)
+      .some((e) => e.closest('.narrative-highlights') && !e.closest('details')),
+  ).toBe(true);
+  expect(screen.getByText(/Operating cash flow decreased 5.7%/)).not.toBeVisible();
+  fireEvent.click(screen.getByText('Calculated financial changes'));
+  expect(screen.getByText(/Operating cash flow decreased 5.7%/)).toBeVisible();
+});
+
+test('narrative highlights favor specific thesis content over company history', () => {
+  const history = {
+    summary: '',
+    quote: 'The company was founded in 1962 and has a long business history.',
+    thesis_quote: 'Technology demand matters.',
+    assessment: 'related',
+  };
+  const specific = {
+    ...history,
+    quote: 'Optical satellite communications and space sensors are deployed for secure networking.',
+  };
+  expect(
+    narrativeHighlights(
+      [history, specific],
+      'Optical satellite communications, space sensors and secure networking are central to my thesis.',
+    )[0],
+  ).toBe(specific);
 });

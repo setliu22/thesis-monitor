@@ -79,6 +79,7 @@ def evaluate_case(case, selected, result):
         "rejected_quotes": result.get("rejected_count", 0) if result else None,
         "assessment_checks": assessments,
         "observations": notes,
+        "coverage": result.get("coverage") if result else None,
     }
 
 
@@ -89,6 +90,7 @@ def main():
     parser.add_argument("--real-thesis")
     parser.add_argument("--output", default="work/thesis-evaluation.json")
     parser.add_argument("--case")
+    parser.add_argument("--model")
     parser.add_argument("--variant", choices=["both", "revised"], default="both")
     args = parser.parse_args()
     cases = json.loads((ROOT / "backend/evals/thesis_passages.json").read_text())
@@ -135,9 +137,10 @@ def main():
                     time.sleep(20)
                 kwargs = {"prompt": BASELINE_PROMPT} if variant == "baseline" else {}
                 try:
-                    result = analyze_filing(
-                        selected, case["thesis"], analysis_config(), **kwargs
-                    )
+                    config = analysis_config()
+                    if args.model:
+                        config.model = args.model
+                    result = analyze_filing(selected, case["thesis"], config, **kwargs)
                 except ValueError as error:
                     results.append(
                         {"id": case["id"], "variant": variant, "error": str(error)}
@@ -148,6 +151,7 @@ def main():
                 calls += 1
             item = evaluate_case(case, selected, result) | {
                 "variant": variant,
+                "model": args.model or analysis_config().model,
                 "document_characters": retrieval["document_characters"],
                 "selected_characters": len(selected),
             }

@@ -2424,3 +2424,25 @@ td {
 .filing-archive[open] > summary {
   margin-bottom: 22px;
 }
+
+.narrative-highlights > h3 {
+  font-size: 14px;
+  margin: 20px 0 12px;
+}
+.narrative-highlights > article + article {
+  margin-top: 20px;
+}
+.narrative-highlights blockquote {
+  margin: 10px 0;
+  border-left: 2px solid #9cad7b;
+  padding-left: 14px;
+  line-height: 1.65;
+}
+.narrative-highlights details {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.narrative-highlights summary {
+  cursor: pointer;
+  color: #657a55;
+}

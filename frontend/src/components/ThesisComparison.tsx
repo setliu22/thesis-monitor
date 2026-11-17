@@ -47,6 +47,51 @@ export function financialChanges(detail: Detail, filingId: number) {
   });
 }
 
+export function narrativeHighlights(
+  observations: Detail['analyses'][number]['result']['observations'],
+  thesis: string,
+) {
+  const stop = new Set(
+    'this that with from their which have been into company business stock because thesis could would should these those about through'.split(
+      ' ',
+    ),
+  );
+  const words = (text: string) =>
+    new Set(
+      (text.toLowerCase().match(/[a-z]{4,}/g) ?? [])
+        .filter((w) => !stop.has(w))
+        .map((w) => (w.endsWith('s') ? w.slice(0, -1) : w)),
+    );
+  const query = words(thesis);
+  const unique = observations.filter(
+    (o, i, rows) => rows.findIndex((x) => x.quote === o.quote) === i,
+  );
+  const vocab = unique.map((o) => words(o.quote));
+  const scored = unique
+    .map((note, i) => ({
+      note,
+      score:
+        [...vocab[i]]
+          .filter((w) => query.has(w))
+          .reduce(
+            (sum, w) =>
+              sum + 1 + Math.log((unique.length + 1) / (vocab.filter((v) => v.has(w)).length + 1)),
+            0,
+          ) / Math.sqrt(1 + note.quote.split(/\s+/).length / 40),
+    }))
+    .sort((a, b) => b.score - a.score);
+  const selected: typeof unique = [];
+  for (const { note } of scored) {
+    if (!selected.some((o) => o.thesis_quote === note.thesis_quote)) selected.push(note);
+    if (selected.length === 3) return selected;
+  }
+  for (const { note } of scored) {
+    if (!selected.includes(note)) selected.push(note);
+    if (selected.length === 3) break;
+  }
+  return selected;
+}
+
 export default function ThesisComparison({
   detail,
   busy,
@@ -62,6 +107,57 @@ export default function ThesisComparison({
   const sourceUrl = filing?.url || analysis?.result.source_url;
   const stale = Boolean(analysis && detail.thesis && analysis.thesis_id !== detail.thesis.id);
   const changes = analysis ? financialChanges(detail, analysis.filing_id) : [];
+  const narrative =
+    !stale && analysis?.result.selection_method === 'complete_passage_classification'
+      ? narrativeHighlights(analysis.result.observations, detail.thesis?.body ?? '')
+      : [];
+  const financialContent = (
+    <>
+      {' '}
+      {changes.length > 0 ? (
+        <ul className="thesis-change-list">
+          {changes.map((c) => (
+            <li key={c.metric}>
+              <p>{c.text}</p>
+              <details className="change-sources">
+                <summary>Source values and filings</summary>
+                {[
+                  { name: 'Current period', value: c.current },
+                  { name: 'Prior year', value: c.previous },
+                ].map((period) => (
+                  <div key={period.name}>
+                    <p>
+                      {period.name}: {date(period.value.end)} ·{' '}
+                      {format(period.value.value, period.value.unit)}
+                    </p>
+                    {period.value.sources.map((source, i) => (
+                      <p className="fine-print" key={i}>
+                        <code>{source.tag}</code> · {format(source.value, period.value.unit)} ·{' '}
+                        {source.start ? `${date(source.start)} – ` : ''}
+                        {date(source.end)}{' '}
+                        {source.url && (
+                          <a
+                            className="text-button"
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Source filing ↗
+                          </a>
+                        )}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </details>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No comparable financial changes could be validated for this reporting period.</p>
+      )}{' '}
+    </>
+  );
   return (
     <section className="panel thesis-comparison" aria-label="Thesis comparison">
       <div className="section-heading">
@@ -88,47 +184,42 @@ export default function ThesisComparison({
           <p className="fine-print">
             {filing?.form} · Reporting period {date(filing?.report_date)}
           </p>
-          {changes.length > 0 ? (
-            <ul className="thesis-change-list">
-              {changes.map((c) => (
-                <li key={c.metric}>
-                  <p>{c.text}</p>
-                  <details className="change-sources">
-                    <summary>Source values and filings</summary>
-                    {[
-                      { name: 'Current period', value: c.current },
-                      { name: 'Prior year', value: c.previous },
-                    ].map((period) => (
-                      <div key={period.name}>
-                        <p>
-                          {period.name}: {date(period.value.end)} ·{' '}
-                          {format(period.value.value, period.value.unit)}
-                        </p>
-                        {period.value.sources.map((source, i) => (
-                          <p className="fine-print" key={i}>
-                            <code>{source.tag}</code> · {format(source.value, period.value.unit)} ·{' '}
-                            {source.start ? `${date(source.start)} – ` : ''}
-                            {date(source.end)}{' '}
-                            {source.url && (
-                              <a
-                                className="text-button"
-                                href={source.url}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Source filing ↗
-                              </a>
-                            )}
-                          </p>
-                        ))}
-                      </div>
-                    ))}
+          {stale && (
+            <p className="muted">
+              Your thesis has changed. Compare again to update the related passages.
+            </p>
+          )}
+          {narrative.length > 0 && (
+            <div className="narrative-highlights">
+              <h3>From the filing</h3>
+              {narrative.map((o, i) => (
+                <article key={i}>
+                  <blockquote>
+                    {o.quote.length > 240
+                      ? o.quote.slice(0, 240).replace(/\s+\S*$/, '') + '…'
+                      : o.quote}
+                  </blockquote>
+                  {sourceUrl && (
+                    <a className="text-button" href={sourceUrl} target="_blank" rel="noreferrer">
+                      Source filing ↗
+                    </a>
+                  )}
+                  <details>
+                    <summary>Thesis link and full passage</summary>
+                    <p>Your thesis: “{o.thesis_quote}”</p>
+                    <blockquote>{o.quote}</blockquote>
                   </details>
-                </li>
+                </article>
               ))}
-            </ul>
+            </div>
+          )}
+          {narrative.length > 0 ? (
+            <details className="comparison-evidence">
+              <summary>Calculated financial changes</summary>
+              {financialContent}
+            </details>
           ) : (
-            <p>No comparable financial changes could be validated for this reporting period.</p>
+            <>{financialContent}</>
           )}
           <details className="comparison-evidence">
             <summary>Full model notes and source evidence</summary>
@@ -154,7 +245,9 @@ export default function ThesisComparison({
               <article className="analysis-card" key={i}>
                 <span className="quiet-label">Unverified model assessment: {o.assessment}</span>
                 {o.thesis_quote && <p className="fine-print">Thesis claim: “{o.thesis_quote}”</p>}
-                <p>{o.summary}</p>
+                {analysis.result.selection_method !== 'complete_passage_classification' && (
+                  <p>{o.summary}</p>
+                )}
                 <blockquote>{o.quote}</blockquote>
                 {sourceUrl && (
                   <a className="text-button" href={sourceUrl} target="_blank" rel="noreferrer">

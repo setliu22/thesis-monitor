@@ -82,6 +82,7 @@ export type Analysis = {
   result: {
     scope: string;
     source_url?: string;
+    selection_method?: string;
     review_status?: string;
     review_notes?: string[];
     observations: { summary: string; quote: string; thesis_quote?: string; assessment: string }[];

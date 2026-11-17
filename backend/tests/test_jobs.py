@@ -75,3 +75,20 @@ def test_worker_processes_queue_and_persists_success(sessions):
         assert s.get(Job, job.id).status == "succeeded"
         assert s.get(Company, 1).last_success
     assert not process_once(sessions, Client(), "test-owner")
+
+
+def test_worker_does_not_expose_database_payloads_in_job_errors(sessions, monkeypatch):
+    from app.worker import process_once
+    from sqlalchemy.exc import SQLAlchemyError
+
+    def fail(*args, **kwargs):
+        raise SQLAlchemyError("private thesis and generated result payload")
+
+    monkeypatch.setattr("app.worker.ingest_company", fail)
+    with sessions.begin() as s:
+        job = enqueue_refresh(s, 1)
+    assert process_once(sessions, owner="test-owner")
+    with sessions() as s:
+        error = s.get(Job, job.id).error
+        assert "Database operation failed" in error
+        assert "private" not in error and "payload" not in error
