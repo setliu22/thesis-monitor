@@ -140,6 +140,9 @@ def main():
         while not stop.is_set():
             try:
                 schedule()
+                from .analysis_dispatch import wake_analysis
+
+                wake_analysis()
             except Exception:
                 logger.exception("scheduler_failed")
             stop.wait(60)
@@ -148,7 +151,9 @@ def main():
     scheduler_thread.start()
     while True:
         try:
-            if not process_once():
+            # Groq reviews run in their own dispatcher; financial refreshes
+            # must not wait behind a model request or its quota allowance.
+            if not process_once(kind="refresh"):
                 time.sleep(2)
         except KeyboardInterrupt:
             stop.set()

@@ -155,3 +155,20 @@ def test_changed_thesis_gets_distinct_analysis_job(sessions):
         changed = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 2})
         assert first.id == same.id
         assert first.id != changed.id
+
+
+def test_refresh_worker_bypasses_older_groq_analysis(sessions, monkeypatch):
+    from app import worker
+
+    calls = []
+    with sessions.begin() as s:
+        analysis = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 1})
+        refresh = enqueue_refresh(s, 1, "refresh")
+    monkeypatch.setattr(
+        worker, "ingest_company", lambda *args, **kwargs: calls.append("refresh")
+    )
+    assert worker.process_once(sessions, owner="data-worker", kind="refresh")
+    with sessions() as s:
+        assert s.get(Job, analysis.id).status == "queued"
+        assert s.get(Job, refresh.id).status == "succeeded"
+    assert calls == ["refresh"]

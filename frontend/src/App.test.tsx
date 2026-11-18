@@ -166,3 +166,83 @@ test('idle dashboard discovers new alerts on its background refresh', async () =
     vi.useRealTimers();
   }
 });
+
+test('queued Groq analysis leaves SEC refresh available', async () => {
+  backend();
+  const original = fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url === '/api/companies/1')
+        return {
+          ok: true,
+          json: async () => ({
+            ...detail,
+            jobs: [
+              {
+                id: 10,
+                kind: 'analysis',
+                status: 'queued',
+                attempts: 0,
+                error: 'Waiting for Groq allowance.',
+                created_at: '2026-11-18',
+                finished_at: null,
+              },
+            ],
+          }),
+        };
+      return original(url, options);
+    }),
+  );
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+  await screen.findByText('No SEC data yet');
+  expect(screen.getByRole('button', { name: 'Refresh SEC data' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: 'Sync in progress' })).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('Comparison queued');
+});
+
+test('financial refresh does not block a Groq comparison of saved filings', async () => {
+  backend();
+  const original = fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url === '/api/companies/1')
+        return {
+          ok: true,
+          json: async () => ({
+            ...detail,
+            thesis: { id: 1, version: 1, body: 'Revenue growth supports my thesis.' },
+            filings: [
+              {
+                id: 1,
+                form: '10-Q',
+                filed: '2026-10-22',
+                report_date: '2026-09-30',
+                accession: 'test',
+                url: 'https://www.sec.gov/test',
+              },
+            ],
+            jobs: [
+              {
+                id: 11,
+                kind: 'refresh',
+                status: 'queued',
+                attempts: 0,
+                error: null,
+                created_at: '2026-11-18',
+                finished_at: null,
+              },
+            ],
+          }),
+        };
+      return original(url, options);
+    }),
+  );
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+  await screen.findByText('No SEC data yet');
+  expect(screen.getByRole('button', { name: 'Sync in progress' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Compare with latest earnings' })).toBeEnabled();
+});

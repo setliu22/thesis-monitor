@@ -83,7 +83,11 @@ export default function App() {
       live = false;
     };
   }, [selected]);
-  const running = detail?.jobs.some((j) => j.status === 'running' || j.status === 'queued');
+  const activeJobs =
+    detail?.jobs.filter((j) => j.status === 'running' || j.status === 'queued') ?? [];
+  const running = activeJobs.length > 0;
+  const refreshing = activeJobs.some((j) => j.kind === 'refresh');
+  const analyzing = activeJobs.some((j) => j.kind === 'analysis');
   useEffect(() => {
     if (selected === null) return;
     const refresh = () => {
@@ -454,7 +458,7 @@ export default function App() {
                   </button>
                   <button
                     className="button primary"
-                    disabled={busy || running || !detail}
+                    disabled={busy || refreshing || !detail}
                     onClick={() =>
                       !settings?.sec_configured
                         ? setShowSettings(true)
@@ -465,12 +469,12 @@ export default function App() {
                           })
                     }
                   >
-                    {running ? (
+                    {refreshing ? (
                       <LoaderCircle size={15} className="spin" />
                     ) : (
                       <RefreshCw size={15} />
                     )}{' '}
-                    {running ? 'Sync in progress' : 'Refresh SEC data'}
+                    {refreshing ? 'Sync in progress' : 'Refresh SEC data'}
                   </button>
                 </div>
               </div>
@@ -543,7 +547,7 @@ export default function App() {
                       <>
                         <ThesisComparison
                           detail={detail}
-                          busy={Boolean(busy || running)}
+                          busy={Boolean(busy || analyzing)}
                           onAnalyze={compareFiling}
                         />
                         <CompanyDetail
@@ -612,7 +616,7 @@ export default function App() {
                       <>
                         <ThesisComparison
                           detail={detail}
-                          busy={Boolean(busy || running)}
+                          busy={Boolean(busy || analyzing)}
                           onAnalyze={compareFiling}
                         />
                         <details className="panel filing-archive">
@@ -670,7 +674,7 @@ export default function App() {
                                           ) && (
                                             <button
                                               className="text-button"
-                                              disabled={busy || running}
+                                              disabled={busy || analyzing}
                                               onClick={() =>
                                                 !settings?.llm_configured
                                                   ? setShowSettings(true)

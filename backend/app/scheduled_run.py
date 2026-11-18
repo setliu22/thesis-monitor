@@ -41,7 +41,11 @@ def main():
     jobs = 0
     # Do not wait for retries scheduled in the future: the next run recovers them.
     while jobs < 20 and time.monotonic() - started < 480:
-        if not process_once(SessionLocal):
+        # Data refreshes get priority over optional model work in this finite run.
+        if not (
+            process_once(SessionLocal, kind="refresh")
+            or process_once(SessionLocal, kind="analysis")
+        ):
             break
         jobs += 1
     drain_notifications()

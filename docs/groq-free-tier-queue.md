@@ -28,3 +28,9 @@ Financial refreshes, alerts and reminders keep their existing workers. Optional 
 The pre-existing multi-stock report is an excerpt-baseline evaluation. Its counts should not be presented as a full-call benchmark.
 
 A call of this length used roughly 25–30k total model tokens across its batches. Six similar fresh reviews plus filing work could approach the conservative daily budget; this is an estimate, not a guaranteed stocks-per-day entitlement. Cached completed reviews use no new model requests.
+
+## Queue boundaries
+
+Every fresh Groq thesis comparison enters the analysis queue, including a single stock with ample quota. Available allowance starts work immediately; only exhausted allowance requires a timed wait. Opening an unchanged completed comparison bypasses the queue. Reading financials, editing a thesis/watchlist and navigating the calendar do not enter the analysis queue.
+
+The local financial worker claims SEC refresh jobs only and wakes the independent analysis dispatcher through its scheduler. The hosted finite scheduler prioritizes SEC refreshes before analysis. The UI tracks these kinds separately: Groq waits never disable the SEC refresh button or label it “Sync in progress,” and a data refresh does not disable comparison of already stored filings. Existing scheduled SEC refresh jobs and email delivery retries retain their separate background processing.
