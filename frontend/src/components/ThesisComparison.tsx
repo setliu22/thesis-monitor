@@ -170,13 +170,13 @@ export default function ThesisComparison({
             disabled={busy || !detail.thesis}
             onClick={() => onAnalyze(latest.id)}
           >
-            {analysis ? 'Compare latest filing' : 'Compare with latest filing'}
+            {analysis ? 'Compare latest earnings' : 'Compare with latest earnings'}
           </button>
         )}
       </div>
       {!analysis && (
         <p className="muted">
-          Save your thesis, then compare it with the latest quarterly or annual filing.
+          Save your thesis, then compare it with the latest filing and available earnings call.
         </p>
       )}
       {analysis && (
@@ -211,6 +211,69 @@ export default function ThesisComparison({
                   </details>
                 </article>
               ))}
+            </div>
+          )}
+          {!stale && analysis.result.transcript && (
+            <div className="narrative-highlights">
+              <h3>
+                From the earnings call
+                {analysis.result.transcript.quarter
+                  ? ` · ${analysis.result.transcript.quarter}`
+                  : ''}
+              </h3>
+              {analysis.result.transcript.status === 'included' ? (
+                <>
+                  {(analysis.result.transcript.observations ?? []).length === 0 && (
+                    <p>No related passages were found in the selected call excerpts.</p>
+                  )}
+                  {narrativeHighlights(
+                    analysis.result.transcript.observations ?? [],
+                    detail.thesis?.body ?? '',
+                  ).map((o, i) => (
+                    <article key={i}>
+                      <p className="fine-print">{'speaker' in o ? String(o.speaker) : ''}</p>
+                      <blockquote>
+                        {o.quote.length > 240
+                          ? o.quote.slice(0, 240).replace(/\s+\S*$/, '') + '…'
+                          : o.quote}
+                      </blockquote>
+                      <details>
+                        <summary>Thesis link and full passage</summary>
+                        <p>Your thesis: “{o.thesis_quote}”</p>
+                        <blockquote>{o.quote}</blockquote>
+                      </details>
+                    </article>
+                  ))}
+                  <details className="comparison-evidence">
+                    <summary>All related call passages and source</summary>
+                    {(analysis.result.transcript.observations ?? []).map((o, i) => (
+                      <article key={i}>
+                        <p className="fine-print">
+                          {o.speaker}
+                          {o.title ? ` · ${o.title}` : ''}
+                        </p>
+                        <blockquote>{o.quote}</blockquote>
+                        <p>Your thesis: “{o.thesis_quote}”</p>
+                      </article>
+                    ))}
+                    <p className="fine-print">
+                      Selected passages from the call. Questions and management statements are
+                      attributed to their speakers.
+                    </p>
+                    {analysis.result.transcript.source_url && (
+                      <a
+                        href={analysis.result.transcript.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Transcript provider ↗
+                      </a>
+                    )}
+                  </details>
+                </>
+              ) : (
+                <p className="muted">{analysis.result.transcript.reason}</p>
+              )}
             </div>
           )}
           {narrative.length > 0 ? (

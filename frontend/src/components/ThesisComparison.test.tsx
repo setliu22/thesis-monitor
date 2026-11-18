@@ -80,7 +80,7 @@ test('analysis action uses latest filing and marks stale thesis', () => {
     />,
   );
   expect(screen.getByRole('heading', { name: 'Thesis comparison' })).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Compare latest filing' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Compare latest earnings' }));
   expect(analyze).toHaveBeenCalledWith(1);
 });
 
@@ -150,4 +150,37 @@ test('narrative highlights favor specific thesis content over company history', 
       'Optical satellite communications, space sensors and secure networking are central to my thesis.',
     )[0],
   ).toBe(specific);
+});
+
+test('call passages retain speakers and are separate from the filing', () => {
+  const comparison = structuredClone(detail);
+  comparison.analyses[0].result.transcript = {
+    status: 'included',
+    quarter: '2026Q3',
+    observations: [
+      {
+        summary: 'Related passage',
+        quote: 'Space sensor demand is increasing.',
+        thesis_quote: 'My thesis',
+        assessment: 'related',
+        speaker: 'Chief executive',
+      },
+    ],
+  };
+  render(<ThesisComparison detail={comparison} busy={false} onAnalyze={() => {}} />);
+  expect(screen.getByRole('heading', { name: 'From the earnings call · 2026Q3' })).toBeVisible();
+  expect(screen.getAllByText('Chief executive')[0]).toBeVisible();
+  expect(screen.getAllByText('Space sensor demand is increasing.')[0]).toBeVisible();
+});
+
+test('missing call stays explicit while filing comparison remains available', () => {
+  const comparison = structuredClone(detail);
+  comparison.analyses[0].result.transcript = {
+    status: 'unavailable',
+    quarter: '2027Q1',
+    reason: 'Transcript has not been published yet.',
+  };
+  render(<ThesisComparison detail={comparison} busy={false} onAnalyze={() => {}} />);
+  expect(screen.getByText('Transcript has not been published yet.')).toBeVisible();
+  expect(screen.getByText(/Operating cash flow decreased 5.7%/)).toBeVisible();
 });

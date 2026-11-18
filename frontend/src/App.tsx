@@ -767,10 +767,11 @@ export default function App() {
               Restart the API and email worker. For alerts while your computer is off, deploy the
               prepared Render services. Keep the API key on the server.
             </p>
-            <h3>Optional filing analysis</h3>
+            <h3>Optional earnings analysis</h3>
             <p>
               Set <code>GROQ_API_KEY</code> on the server to enable filing analysis. Selected filing
-              excerpts and your saved thesis will be sent to Groq when you request analysis.
+              excerpts, available earnings-call excerpts and your saved thesis will be sent to Groq
+              when you request analysis.
             </p>
             <p className="fine-print">
               Financial data refreshes around earnings. The worker checks for a newly announced date

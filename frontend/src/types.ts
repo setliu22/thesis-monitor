@@ -80,6 +80,21 @@ export type Analysis = {
   prompt_version: string;
   created_at: string;
   result: {
+    transcript?: {
+      status: string;
+      quarter?: string;
+      reason?: string;
+      source_url?: string;
+      observations?: {
+        summary: string;
+        quote: string;
+        thesis_quote?: string;
+        assessment: string;
+        speaker: string;
+        title?: string;
+        turn?: number;
+      }[];
+    };
     scope: string;
     source_url?: string;
     selection_method?: string;
