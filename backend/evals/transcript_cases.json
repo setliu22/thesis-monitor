@@ -1,0 +1,116 @@
+{
+  "description": "Sample theses, not user holdings or recommendations. Source anchors labeled before running the model; small exploratory suite, not a blind benchmark.",
+  "negative_thesis": "My thesis depends on veterinary vaccines preventing feline leukemia in household cats.",
+  "cases": [
+    {
+      "ticker": "MSFT",
+      "quarter": "2025Q4",
+      "thesis": "My sample thesis is that Azure cloud and AI demand can sustain growth. Data center capacity and capital spending could constrain cloud expansion and margins. Microsoft 365 Copilot adoption could increase monetization of its productivity software.",
+      "targets": [
+        {
+          "name": "Cloud demand",
+          "anchor": "demand remains higher than supply",
+          "claim": 2
+        },
+        {
+          "name": "Capacity constraint",
+          "anchor": "expect to remain capacity-constrained",
+          "claim": 2
+        },
+        {
+          "name": "Copilot adoption",
+          "anchor": "Customers continue to adopt Copilot",
+          "claim": 3
+        }
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "quarter": "2025Q4",
+      "thesis": "My sample thesis is that Blackwell demand can sustain data center growth. Inference workloads could expand demand for NVIDIA GPUs. Export restrictions on sales to China could reduce revenue and limit access to that market.",
+      "targets": [
+        {
+          "name": "Blackwell sales",
+          "anchor": "Blackwell sales exceeded our expectations",
+          "claim": 1
+        },
+        {
+          "name": "Inference demand",
+          "anchor": "Our inference demand is accelerating",
+          "claim": 2
+        },
+        {
+          "name": "China export exposure",
+          "anchor": "data center sales in China remained well below",
+          "claim": 3
+        }
+      ]
+    },
+    {
+      "ticker": "JPM",
+      "quarter": "2025Q4",
+      "thesis": "My sample thesis is that net interest income depends on interest rates and deposit costs. Consumer credit deterioration and higher credit card losses could weaken earnings. Investment banking fees and markets activity could support revenue diversification.",
+      "targets": [
+        {
+          "name": "Rates and deposit balances",
+          "anchor": "The increase in NII ex markets was primarily driven",
+          "claim": 1
+        },
+        {
+          "name": "Credit card losses",
+          "anchor": "2026 card net charge-off rate",
+          "claim": 2
+        },
+        {
+          "name": "Investment banking",
+          "anchor": "optimistic on investment banking fees",
+          "claim": 3
+        }
+      ]
+    },
+    {
+      "ticker": "COST",
+      "quarter": "2025Q4",
+      "thesis": "My sample thesis is that membership renewals and membership fee income underpin recurring earnings. New warehouse openings can support long-term sales growth. E-commerce and digital engagement could increase customer spending.",
+      "targets": [
+        {
+          "name": "Membership income",
+          "anchor": "We reported membership fee income of $1.72 billion",
+          "claim": 1
+        },
+        {
+          "name": "Warehouse growth",
+          "anchor": "we opened 27 new warehouses",
+          "claim": 2
+        },
+        {
+          "name": "Digital sales",
+          "anchor": "e-commerce sales exceeded $19.6 billion",
+          "claim": 3
+        }
+      ]
+    },
+    {
+      "ticker": "XOM",
+      "quarter": "2025Q4",
+      "thesis": "My sample thesis is that production growth in Guyana and the Permian can increase earnings. LNG projects can expand natural gas volumes. Lower operating costs and structural cost savings could improve profitability.",
+      "targets": [
+        {
+          "name": "Production growth",
+          "anchor": "production from advantaged assets including the Permian, Guyana",
+          "claim": 1
+        },
+        {
+          "name": "LNG projects",
+          "anchor": "These included Golden Pass LNG",
+          "claim": 2
+        },
+        {
+          "name": "Cost savings",
+          "anchor": "increase our structural cost savings in 2025",
+          "claim": 3
+        }
+      ]
+    }
+  ]
+}

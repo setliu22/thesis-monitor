@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     max_attempts: int = Field(default=3, ge=1, le=10)
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-20b"
+    groq_tokens_per_minute: int = Field(default=7800, ge=1000)
+    groq_tokens_per_day: int = Field(default=180000, ge=1000)
+    groq_requests_per_minute: int = Field(default=25, ge=1)
+    groq_requests_per_day: int = Field(default=900, ge=1)
     production: bool = False
     app_origin: str = ""
     owner_password: str = ""

@@ -14,12 +14,24 @@ def enqueue_refresh(session, company_id: int, kind="refresh", payload=None) -> J
     )
     if not company or not company.watched:
         raise ValueError("Company not found")
-    existing = session.scalar(
+    pending = session.scalars(
         select(Job).where(
             Job.company_id == company_id,
             Job.kind == kind,
             Job.status.in_(["queued", "running"]),
         )
+    ).all()
+    existing = next(
+        (
+            j
+            for j in pending
+            if kind != "analysis"
+            or all(
+                j.payload.get(k) == (payload or {}).get(k)
+                for k in ("filing_id", "thesis_id")
+            )
+        ),
+        None,
     )
     if existing:
         return existing
@@ -29,12 +41,14 @@ def enqueue_refresh(session, company_id: int, kind="refresh", payload=None) -> J
     return job
 
 
-def claim_job(sessions, worker_id: str, max_attempts=3, lease_seconds=180):
+def claim_job(sessions, worker_id: str, max_attempts=3, lease_seconds=180, kind=None):
     with sessions.begin() as s:
         due = or_(
             and_(Job.status == "queued", Job.available_at <= now()),
             and_(Job.status == "running", Job.lease_until < now()),
         )
+        if kind:
+            due = and_(due, Job.kind == kind)
         # Expired jobs at their attempt budget must not remain running forever.
         for exhausted in s.scalars(
             select(Job)
@@ -106,3 +120,26 @@ def fail_job(sessions, job_id, owner, error, delay=30, max_attempts=3):
         if job.status == "failed":
             job.finished_at = now()
         return True
+
+
+def analysis_progress(sessions, job_id, owner, phase, completed, total):
+    with sessions.begin() as s:
+        job = owned_job(s, job_id, owner)
+        data = dict(job.payload or {})
+        data["progress"] = {
+            "phase": phase,
+            "completed_batches": completed,
+            "total_batches": total,
+        }
+        job.payload = data
+
+
+def defer_job(sessions, job_id, owner, reason, delay):
+    with sessions.begin() as s:
+        job = owned_job(s, job_id, owner)
+        job.status = "queued"
+        job.available_at = after(delay)
+        job.lease_until = None
+        job.owner = None
+        job.error = str(reason)[:500]
+        job.attempts = max(0, job.attempts - 1)

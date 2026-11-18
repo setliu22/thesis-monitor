@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 from urllib.parse import urlparse
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import select, text, inspect
@@ -107,6 +107,24 @@ def record(row):
         c.key: str(v) if isinstance(v := getattr(row, c.key), Decimal) else v
         for c in inspect(row).mapper.column_attrs
     }
+
+
+def analysis_record(row):
+    data = record(row)
+    result = dict(data["result"])
+    for key in (
+        "supplied_excerpts",
+        "passage_catalog",
+        "passage_decisions",
+        "thesis_claims",
+    ):
+        result.pop(key, None)
+    if result.get("transcript"):
+        result["transcript"] = {
+            k: v for k, v in result["transcript"].items() if k != "supplied_excerpts"
+        }
+    data["result"] = result
+    return data
 
 
 def company_or_404(s, company_id, lock=False):
@@ -244,7 +262,14 @@ def remove_company(company_id: int, s: Session = Depends(get_session)):
 
 
 @app.get("/api/companies/{company_id}")
-def detail(company_id: int, s: Session = Depends(get_session)):
+def detail(
+    company_id: int,
+    background_tasks: BackgroundTasks,
+    s: Session = Depends(get_session),
+):
+    from .analysis_dispatch import wake_analysis
+
+    background_tasks.add_task(wake_analysis)
     company = company_or_404(s, company_id)
     thesis = s.scalar(
         select(ThesisVersion)
@@ -309,7 +334,7 @@ def detail(company_id: int, s: Session = Depends(get_session)):
             )
         ],
         "analyses": [
-            record(a)
+            analysis_record(a)
             for a in s.scalars(
                 select(Analysis)
                 .where(Analysis.company_id == company_id)
@@ -415,7 +440,12 @@ def jobs(s: Session = Depends(get_session)):
 
 
 @app.post("/api/companies/{company_id}/analyze", status_code=202)
-def analyze(company_id: int, data: AnalysisInput, s: Session = Depends(get_session)):
+def analyze(
+    company_id: int,
+    data: AnalysisInput,
+    background_tasks: BackgroundTasks,
+    s: Session = Depends(get_session),
+):
     company_or_404(s, company_id, True)
     require_sec()
     if not settings.groq_api_key:
@@ -437,9 +467,34 @@ def analyze(company_id: int, data: AnalysisInput, s: Session = Depends(get_sessi
     )
     if not thesis:
         raise HTTPException(409, "Save your thesis before requesting analysis")
+    from .analysis import PROMPT_VERSION
+    from .analysis_dispatch import wake_analysis
+
+    existing = s.scalars(
+        select(Analysis)
+        .where(
+            Analysis.company_id == company_id,
+            Analysis.filing_id == filing.id,
+            Analysis.thesis_id == thesis.id,
+            Analysis.model == settings.groq_model,
+            Analysis.prompt_version == PROMPT_VERSION,
+        )
+        .order_by(Analysis.id.desc())
+    ).first()
+    if existing:
+        call = existing.result.get("transcript", {})
+        recent = (
+            datetime.now(timezone.utc) - datetime.fromisoformat(existing.created_at)
+        ).total_seconds() < 3600
+        if (
+            call.get("status") == "included"
+            and call.get("coverage", {}).get("full_transcript")
+        ) or (recent and call.get("status") == "unavailable"):
+            return {"cached": True, "analysis_id": existing.id}
     job = enqueue_refresh(
         s, company_id, "analysis", {"filing_id": filing.id, "thesis_id": thesis.id}
     )
+    background_tasks.add_task(wake_analysis)
     s.commit()
     return record(job)
 

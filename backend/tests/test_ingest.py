@@ -100,3 +100,21 @@ def test_share_class_tickers_retain_their_own_filing_links(sessions):
             )
             == 1
         )
+
+
+def test_mapping_quota_wait_preserves_fresh_financial_data(sessions, monkeypatch):
+    import pytest
+    from app import ingest
+    from app.groq_runtime import Deferred
+
+    def wait(*args, **kwargs):
+        raise Deferred(60)
+
+    monkeypatch.setattr(ingest, "investigate", wait)
+    with pytest.raises(Deferred):
+        ingest_company(sessions, 1, Client())
+    with sessions() as s:
+        company = s.get(Company, 1)
+        assert company.last_success and company.data_status == "current"
+        assert company.last_error is None
+        assert s.scalar(select(func.count()).select_from(Observation)) > 0

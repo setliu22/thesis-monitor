@@ -71,6 +71,8 @@ export type Job = {
   error: string | null;
   created_at: string;
   finished_at: string | null;
+  available_at?: string;
+  payload?: { progress?: { phase: string; completed_batches: number; total_batches: number } };
 };
 export type Analysis = {
   id: number;
@@ -85,6 +87,7 @@ export type Analysis = {
       quarter?: string;
       reason?: string;
       source_url?: string;
+      coverage?: { full_transcript?: boolean; passages_classified: number; batches: number };
       observations?: {
         summary: string;
         quote: string;

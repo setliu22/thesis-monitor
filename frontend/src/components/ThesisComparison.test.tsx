@@ -184,3 +184,23 @@ test('missing call stays explicit while filing comparison remains available', ()
   expect(screen.getByText('Transcript has not been published yet.')).toBeVisible();
   expect(screen.getByText(/Operating cash flow decreased 5.7%/)).toBeVisible();
 });
+
+test('queued call review displays saved batch progress and quota wait', () => {
+  const comparison = structuredClone(detail);
+  comparison.jobs = [
+    {
+      id: 9,
+      kind: 'analysis',
+      status: 'queued',
+      attempts: 0,
+      error: 'Waiting for Groq free-tier allowance. Completed batches are saved.',
+      created_at: '2026-11-18',
+      finished_at: null,
+      payload: { progress: { phase: 'transcript', completed_batches: 3, total_batches: 9 } },
+    },
+  ];
+  render(<ThesisComparison detail={comparison} busy={true} onAnalyze={() => {}} />);
+  expect(screen.getByRole('status')).toHaveTextContent('Call batches 3 of 9');
+  expect(screen.getByRole('status')).toHaveTextContent('Completed batches are saved');
+  expect(screen.getByRole('button', { name: 'Compare latest earnings' })).toBeDisabled();
+});

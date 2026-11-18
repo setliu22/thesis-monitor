@@ -102,6 +102,10 @@ export default function ThesisComparison({
   onAnalyze: (filingId: number) => void;
 }) {
   const analysis = detail.analyses[0];
+  const job = detail.jobs?.find(
+    (j) => j.kind === 'analysis' && ['queued', 'running'].includes(j.status),
+  );
+  const progress = job?.payload?.progress;
   const latest = detail.filings.find((f) => ['10-K', '10-Q', '10-K/A', '10-Q/A'].includes(f.form));
   const filing = detail.filings.find((f) => f.id === analysis?.filing_id);
   const sourceUrl = filing?.url || analysis?.result.source_url;
@@ -174,6 +178,31 @@ export default function ThesisComparison({
           </button>
         )}
       </div>
+      {job && (
+        <div className="analysis-progress" role="status" aria-live="polite">
+          <p>
+            {job.status === 'running' ? 'Reviewing earnings' : 'Comparison queued'}
+            {progress?.phase === 'transcript'
+              ? ` · Call batches ${progress.completed_batches} of ${progress.total_batches}`
+              : progress?.phase === 'filing'
+                ? ' · Reviewing the filing'
+                : ''}
+          </p>
+          {job.status === 'queued' && job.error && <p className="fine-print">{job.error}</p>}
+          {job.status === 'queued' &&
+            job.available_at &&
+            new Date(job.available_at).getTime() > Date.now() + 3000 && (
+              <p className="fine-print">
+                Next attempt at{' '}
+                {new Date(job.available_at).toLocaleTimeString([], {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+                . You can keep using the app.
+              </p>
+            )}
+        </div>
+      )}
       {!analysis && (
         <p className="muted">
           Save your thesis, then compare it with the latest filing and available earnings call.
@@ -244,6 +273,12 @@ export default function ThesisComparison({
                       </details>
                     </article>
                   ))}
+                  {analysis.result.transcript.coverage?.full_transcript && (
+                    <p className="fine-print">
+                      Full call reviewed · {analysis.result.transcript.coverage.passages_classified}{' '}
+                      passages
+                    </p>
+                  )}
                   <details className="comparison-evidence">
                     <summary>All related call passages and source</summary>
                     {(analysis.result.transcript.observations ?? []).map((o, i) => (
@@ -257,8 +292,7 @@ export default function ThesisComparison({
                       </article>
                     ))}
                     <p className="fine-print">
-                      Selected passages from the call. Questions and management statements are
-                      attributed to their speakers.
+                      Questions and management statements are attributed to their speakers.
                     </p>
                     {analysis.result.transcript.source_url && (
                       <a

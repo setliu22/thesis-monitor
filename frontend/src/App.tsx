@@ -165,9 +165,17 @@ export default function App() {
       return;
     }
     act(async () => {
-      await api('/companies/' + selected + '/analyze', 'POST', { filing_id: filingId });
+      const response = await api<{ cached?: boolean }>(
+        '/companies/' + selected + '/analyze',
+        'POST',
+        { filing_id: filingId },
+      );
       await reload();
-      setMessage('Comparison queued against your saved thesis.');
+      setMessage(
+        response.cached
+          ? 'Showing your saved comparison.'
+          : 'Comparison queued against your saved thesis.',
+      );
     });
   };
   const unread = detail?.alerts.filter((a) => !a.acknowledged_at).length ?? 0;

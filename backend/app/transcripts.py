@@ -204,28 +204,120 @@ def select_transcript_evidence(turns, thesis):
     }
 
 
-def compare_transcript(payload, thesis, config, transport=None):
+def full_transcript_batches(turns):
+    """Cover every distinct unit, retaining all occurrences of repeated text."""
+    catalog = {}
+    for turn in turns:
+        text = clean(turn["content"])
+        start = 0
+        while start < len(text):
+            end = min(start + 550, len(text))
+            if end < len(text):
+                sentence = max(
+                    text.rfind(mark, start + 250, end) for mark in (". ", "? ", "! ")
+                )
+                boundary = text.rfind(" ", start + 250, end)
+                if sentence > start:
+                    end = sentence + 1
+                elif boundary > start:
+                    end = boundary
+            block = text[start:end]
+            origin = {
+                "speaker": turn["speaker"],
+                "turn": turn.get("turn"),
+                "title": turn.get("title", ""),
+                "start": start,
+                "end": end,
+            }
+            if block not in catalog:
+                catalog[block] = {"text": block, **origin, "occurrences": []}
+            catalog[block]["occurrences"].append(origin)
+            if len(catalog) > 10000:
+                raise FeedError("Transcript has too many passages for bounded review.")
+            start = end
+            while start < len(text) and text[start].isspace():
+                start += 1
+    batches = []
+    current = []
+    size = 0
+    for passage in catalog.values():
+        cost = len(passage["text"]) + (len(BREAK) if current else 0)
+        if current and (size + cost > 7500 or len(current) >= 32):
+            batches.append(
+                {"passages": current, "text": BREAK.join(p["text"] for p in current)}
+            )
+            current = []
+            size = 0
+            cost = len(passage["text"])
+        current.append(passage)
+        size += cost
+    if current:
+        batches.append(
+            {"passages": current, "text": BREAK.join(p["text"] for p in current)}
+        )
+    return batches
+
+
+def compare_transcript(
+    payload, thesis, config, transport=None, runner=None, progress=None
+):
     from .analysis import analyze_filing, ANALYSIS_PROMPT
 
-    retrieval = select_transcript_evidence(payload["turns"], thesis[:4000])
+    batches = full_transcript_batches(payload["turns"])
     call_prompt = (
         ANALYSIS_PROMPT
         + " This source is an earnings-call transcript. Analyst questions are questions, not company statements or established facts. Generic optimism, budget growth, execution or financial results do not match a valuation claim unless the passage specifically addresses valuation, a multiple or a stock price. Do not match a methodological disclaimer about assessing expectations against future filings to a business passage. Prefer concrete business subjects over a generic company identity."
     )
-    result = analyze_filing(
-        retrieval["text"], thesis, config, transport=transport, prompt=call_prompt
-    )
-    for observation in result["observations"]:
-        passage = next(
-            p for p in retrieval["passages"] if observation["quote"] == p["text"]
+    observations = []
+    considered = classified = rejected = 0
+    for index, batch in enumerate(batches):
+        if progress:
+            progress("transcript", index, len(batches))
+        result = analyze_filing(
+            batch["text"],
+            thesis,
+            config,
+            transport=transport,
+            prompt=call_prompt,
+            runner=runner,
+            passage_units=[p["text"] for p in batch["passages"]],
         )
-        observation.update({k: passage[k] for k in ("speaker", "turn", "title")})
-    return result | {
+        source = {p["text"]: p for p in batch["passages"]}
+        for observation in result["observations"]:
+            passage = source[observation["quote"]]
+            observation.update(
+                {k: passage[k] for k in ("speaker", "turn", "title", "occurrences")}
+            )
+            observations.append(observation)
+        considered += result["coverage"]["passages_considered"]
+        classified += result["coverage"]["passages_classified"]
+        rejected += result["rejected_count"]
+    if considered != classified:
+        raise ValueError(
+            "Incomplete transcript coverage; no completed call comparison saved."
+        )
+    if progress:
+        progress("transcript", len(batches), len(batches))
+    return {
+        "observations": observations,
+        "rejected_count": rejected,
+        "selection_method": "complete_passage_classification",
+        "coverage": {
+            "passages_considered": considered,
+            "passages_classified": classified,
+            "batches": len(batches),
+            "full_transcript": True,
+        },
         "status": "included",
         "quarter": payload["quarter"],
         "symbol": payload["symbol"],
         "source_url": payload["source_url"],
-        "retrieval": {k: v for k, v in retrieval.items() if k != "text"},
-        "supplied_excerpts": retrieval["text"],
-        "scope": "Selected speaker-attributed call passages matched to thesis claims; not a full-call semantic review. Management statements and analyst questions are not verified facts.",
+        "retrieval": {
+            "version": "full-speaker-batches-v2",
+            "total_turns": len(payload["turns"]),
+            "document_characters": sum(len(t["content"]) for t in payload["turns"]),
+            "reviewed_characters": sum(len(b["text"]) for b in batches),
+        },
+        "supplied_excerpts": BREAK.join(b["text"] for b in batches),
+        "scope": "Every distinct transcript text unit classified against the supplied thesis. Repeated text retains all speaker occurrences. Management statements, analyst questions and model relevance judgments are unverified.",
     }

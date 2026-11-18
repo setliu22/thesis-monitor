@@ -133,3 +133,52 @@ def test_local_dev_origin_can_save_and_external_origin_is_rejected(api):
         ).status_code
         == 403
     )
+
+
+def test_completed_full_comparison_is_reused_without_queueing(
+    api, sessions, monkeypatch
+):
+    from app.models import Filing, ThesisVersion, Analysis, Job
+    from app.analysis import PROMPT_VERSION
+    from app.config import settings
+    from app import main
+    from sqlalchemy import select, func
+
+    monkeypatch.setattr(settings, "groq_api_key", "test")
+    monkeypatch.setattr(main, "require_sec", lambda: None)
+    with sessions.begin() as s:
+        filing = Filing(
+            company_id=1,
+            accession="test",
+            form="10-Q",
+            filed="2026-10-22",
+            report_date="2026-09-30",
+            document="test.htm",
+        )
+        thesis = ThesisVersion(
+            company_id=1, version=1, body="Warehouse expansion supports sales growth."
+        )
+        s.add_all([filing, thesis])
+        s.flush()
+        analysis = Analysis(
+            company_id=1,
+            filing_id=filing.id,
+            thesis_id=thesis.id,
+            model=settings.groq_model,
+            prompt_version=PROMPT_VERSION,
+            result={
+                "scope": "Complete call",
+                "observations": [],
+                "transcript": {
+                    "status": "included",
+                    "coverage": {"full_transcript": True},
+                },
+            },
+        )
+        s.add(analysis)
+        s.flush()
+        fid = filing.id
+    result = api.post("/api/companies/1/analyze", json={"filing_id": fid})
+    assert result.status_code == 202 and result.json()["cached"]
+    with sessions() as s:
+        assert s.scalar(select(func.count()).select_from(Job)) == 0

@@ -2528,3 +2528,14 @@ td {
   display: flex;
   font-size: 10px;
 }
+
+.analysis-progress {
+  padding: 14px 18px;
+  margin: 16px 0;
+  border: 1px solid var(--border, #dce2d2);
+  border-radius: 10px;
+  background: #f2f5ed;
+}
+.analysis-progress p {
+  margin: 5px 0;
+}

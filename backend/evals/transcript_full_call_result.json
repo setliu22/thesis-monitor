@@ -1,0 +1,14 @@
+{
+  "ticker": "COST",
+  "quarter": "2025Q4",
+  "coverage": {
+    "passages_considered": 169,
+    "passages_classified": 169,
+    "batches": 9,
+    "full_transcript": true
+  },
+  "related_passages": 69,
+  "source_and_speaker_exact": true,
+  "annual_openings_passage_found": true,
+  "elapsed_seconds": 438
+}

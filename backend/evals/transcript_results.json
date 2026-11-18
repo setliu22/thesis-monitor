@@ -1,0 +1,217 @@
+{
+  "date": "2026-11-18",
+  "model": "openai/gpt-oss-20b",
+  "provider": "groq",
+  "results": [
+    {
+      "ticker": "MSFT",
+      "quarter": "2025Q4",
+      "speaker_turns": 33,
+      "coverage": {
+        "passages_considered": 50,
+        "passages_classified": 50,
+        "batches": 2
+      },
+      "related_passages": 38,
+      "source_and_speaker_exact": true,
+      "targets": [
+        {
+          "name": "Cloud demand",
+          "anchor": "demand remains higher than supply",
+          "claim": 2,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Capacity constraint",
+          "anchor": "expect to remain capacity-constrained",
+          "claim": 2,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Copilot adoption",
+          "anchor": "Customers continue to adopt Copilot",
+          "claim": 3,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        }
+      ],
+      "negative_control": {
+        "passages_classified": 50,
+        "unrelated_matches": 0
+      }
+    },
+    {
+      "ticker": "NVDA",
+      "quarter": "2025Q4",
+      "speaker_turns": 31,
+      "coverage": {
+        "passages_considered": 64,
+        "passages_classified": 64,
+        "batches": 2
+      },
+      "related_passages": 36,
+      "source_and_speaker_exact": true,
+      "targets": [
+        {
+          "name": "Blackwell sales",
+          "anchor": "Blackwell sales exceeded our expectations",
+          "claim": 1,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Inference demand",
+          "anchor": "Our inference demand is accelerating",
+          "claim": 2,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "China export exposure",
+          "anchor": "data center sales in China remained well below",
+          "claim": 3,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        }
+      ],
+      "negative_control": {
+        "passages_classified": 64,
+        "unrelated_matches": 0
+      }
+    },
+    {
+      "ticker": "JPM",
+      "quarter": "2025Q4",
+      "speaker_turns": 75,
+      "coverage": {
+        "passages_considered": 46,
+        "passages_classified": 46,
+        "batches": 1
+      },
+      "related_passages": 13,
+      "source_and_speaker_exact": true,
+      "targets": [
+        {
+          "name": "Rates and deposit balances",
+          "anchor": "The increase in NII ex markets was primarily driven",
+          "claim": 1,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Credit card losses",
+          "anchor": "2026 card net charge-off rate",
+          "claim": 2,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Investment banking",
+          "anchor": "optimistic on investment banking fees",
+          "claim": 3,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        }
+      ],
+      "negative_control": {
+        "passages_classified": 46,
+        "unrelated_matches": 0
+      }
+    },
+    {
+      "ticker": "COST",
+      "quarter": "2025Q4",
+      "speaker_turns": 65,
+      "coverage": {
+        "passages_considered": 46,
+        "passages_classified": 46,
+        "batches": 1
+      },
+      "related_passages": 39,
+      "source_and_speaker_exact": true,
+      "targets": [
+        {
+          "name": "Membership income",
+          "anchor": "We reported membership fee income of $1.72 billion",
+          "claim": 1,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Warehouse growth",
+          "anchor": "we opened 27 new warehouses",
+          "claim": 2,
+          "retrieved": false,
+          "returned": false,
+          "correct_claim": false
+        },
+        {
+          "name": "Digital sales",
+          "anchor": "e-commerce sales exceeded $19.6 billion",
+          "claim": 3,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        }
+      ],
+      "negative_control": {
+        "passages_classified": 46,
+        "unrelated_matches": 0
+      }
+    },
+    {
+      "ticker": "XOM",
+      "quarter": "2025Q4",
+      "speaker_turns": 72,
+      "coverage": {
+        "passages_considered": 54,
+        "passages_classified": 54,
+        "batches": 2
+      },
+      "related_passages": 44,
+      "source_and_speaker_exact": true,
+      "targets": [
+        {
+          "name": "Production growth",
+          "anchor": "production from advantaged assets including the Permian, Guyana",
+          "claim": 1,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "LNG projects",
+          "anchor": "These included Golden Pass LNG",
+          "claim": 2,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        },
+        {
+          "name": "Cost savings",
+          "anchor": "increase our structural cost savings in 2025",
+          "claim": 3,
+          "retrieved": true,
+          "returned": true,
+          "correct_claim": true
+        }
+      ],
+      "negative_control": {
+        "passages_classified": 54,
+        "unrelated_matches": 0
+      }
+    }
+  ]
+}

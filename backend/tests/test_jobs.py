@@ -92,3 +92,66 @@ def test_worker_does_not_expose_database_payloads_in_job_errors(sessions, monkey
         error = s.get(Job, job.id).error
         assert "Database operation failed" in error
         assert "private" not in error and "payload" not in error
+
+
+def test_quota_waits_do_not_exhaust_retry_budget(sessions):
+    from app.jobs import defer_job
+
+    with sessions.begin() as s:
+        queued = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 1})
+    for _ in range(8):
+        job = claim_job(sessions, "worker")
+        assert job is not None
+        defer_job(sessions, job.id, "worker", "Waiting for quota", 0)
+    with sessions() as s:
+        assert s.get(Job, queued.id).attempts == 0
+        assert s.get(Job, queued.id).status == "queued"
+
+
+def test_analysis_only_claim_does_not_run_financial_refresh(sessions):
+    with sessions.begin() as s:
+        refresh = enqueue_refresh(s, 1)
+        analysis = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 1})
+    claimed = claim_job(sessions, "web", kind="analysis")
+    assert claimed.id == analysis.id
+    with sessions() as s:
+        assert s.get(Job, refresh.id).status == "queued"
+
+
+def test_web_activity_wakes_expired_analysis_job(sessions, monkeypatch):
+    import threading
+    from app import analysis_dispatch as dispatch
+    from app.config import settings
+
+    with sessions.begin() as s:
+        job = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 1})
+        job.status = "running"
+        job.owner = "dead"
+        job.lease_until = (
+            datetime.now(timezone.utc) - timedelta(seconds=1)
+        ).isoformat()
+    starts = []
+
+    class Thread:
+        def __init__(self, **kwargs):
+            pass
+
+        def start(self):
+            starts.append(True)
+
+    monkeypatch.setattr(settings, "groq_api_key", "test")
+    monkeypatch.setattr(dispatch, "SessionLocal", sessions)
+    monkeypatch.setattr(dispatch, "_gate", threading.Lock())
+    monkeypatch.setattr(dispatch.threading, "Thread", Thread)
+    dispatch.wake_analysis()
+    assert starts == [True]
+    dispatch._gate.release()
+
+
+def test_changed_thesis_gets_distinct_analysis_job(sessions):
+    with sessions.begin() as s:
+        first = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 1})
+        same = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 1})
+        changed = enqueue_refresh(s, 1, "analysis", {"filing_id": 1, "thesis_id": 2})
+        assert first.id == same.id
+        assert first.id != changed.id

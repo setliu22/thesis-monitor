@@ -160,7 +160,28 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
                         )
                 except (SecError, ValueError, KeyError):
                     pass  # SEC access failure must not discard company-facts data.
-        registry = investigate(facts, registry)
+        from .groq_runtime import GroqRunner, Limits
+
+        from .groq_runtime import Deferred
+
+        mapping_wait = None
+        try:
+            registry = investigate(
+                facts,
+                registry,
+                runner=GroqRunner(
+                    sessions,
+                    settings.groq_api_key,
+                    limits=Limits(
+                        tpm=settings.groq_tokens_per_minute,
+                        tpd=settings.groq_tokens_per_day,
+                        rpm=settings.groq_requests_per_minute,
+                        rpd=settings.groq_requests_per_day,
+                    ),
+                ),
+            )
+        except Deferred as exc:
+            mapping_wait = exc
         observations = normalize_mapped(facts, registry)
         with sessions.begin() as s:
             company = guard(s)
@@ -256,7 +277,13 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
             company.last_success = now()
             company.last_error = None
             evaluate_company(s, company_id)
+        if mapping_wait:
+            raise mapping_wait
     except Exception as exc:
+        from .groq_runtime import Deferred
+
+        if isinstance(exc, Deferred):
+            raise
         with sessions.begin() as s:
             company = guard(s)
             company.data_status = "stale" if company.last_success else "empty"

@@ -140,7 +140,7 @@ def test_groq_request_reserves_output_budget_and_limits_input():
         transport=httpx.MockTransport(handle),
     )
     body = seen[0]
-    assert body["reasoning_effort"] == "low" and body["max_completion_tokens"] == 4096
+    assert body["reasoning_effort"] == "low" and body["max_completion_tokens"] == 1536
     supplied = json.loads(body["messages"][1]["content"])
     assert (
         sum(len(p["text"]) for p in supplied["filing_passages"]) <= 8000
@@ -441,3 +441,55 @@ def test_prompt_version_fits_persisted_schema():
     from app.models import Analysis
 
     assert len(PROMPT_VERSION) <= Analysis.__table__.c.prompt_version.type.length
+
+
+def test_many_short_thesis_claims_fit_shared_budget(sessions):
+    from app.groq_runtime import GroqRunner, Limits, estimate
+
+    thesis = " ".join(f"Capability {i:03d}." for i in range(235))
+    assert len(thesis) < 4000
+    requests = []
+
+    def handle(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        supplied = json.loads(body["messages"][1]["content"])
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "matches": {
+                                        p["id"]: None
+                                        for p in supplied["filing_passages"]
+                                    }
+                                }
+                            )
+                        },
+                    }
+                ],
+                "usage": {"total_tokens": 1},
+            },
+        )
+
+    runner = GroqRunner(
+        sessions,
+        "key",
+        limits=Limits(tpm=7200, rpm=100, tpd=180000),
+        max_new_requests=20,
+        transport=httpx.MockTransport(handle),
+    )
+    result = analyze_filing(
+        " ".join(
+            f"Business capability number {i} remains relevant." for i in range(32)
+        ),
+        thesis,
+        AnalysisConfig("key"),
+        runner=runner,
+    )
+    assert result["coverage"]["passages_classified"] == 32
+    assert all(estimate(body) <= 7200 for body in requests)

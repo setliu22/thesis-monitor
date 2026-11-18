@@ -46,9 +46,11 @@ def schedule(sessions=SessionLocal):
                 enqueue_refresh(s, company.id)
 
 
-def process_once(sessions=SessionLocal, client=None, owner=None):
+def process_once(sessions=SessionLocal, client=None, owner=None, kind=None):
     owner = owner or uuid.uuid4().hex
-    job = claim_job(sessions, owner, settings.max_attempts, settings.lease_seconds)
+    job = claim_job(
+        sessions, owner, settings.max_attempts, settings.lease_seconds, kind=kind
+    )
     if not job:
         return False
     stop = threading.Event()
@@ -91,6 +93,16 @@ def process_once(sessions=SessionLocal, client=None, owner=None):
             )
         )
     except Exception as exc:
+        from .groq_runtime import Deferred
+
+        if isinstance(exc, Deferred):
+            from .jobs import defer_job
+
+            try:
+                defer_job(sessions, job.id, owner, str(exc), exc.delay)
+            except RuntimeError:
+                logger.warning("deferred_job_lease_lost: %s", job.id)
+            return True
         error = (
             "Database operation failed; no result saved. Retry after the app updates."
             if isinstance(exc, SQLAlchemyError)

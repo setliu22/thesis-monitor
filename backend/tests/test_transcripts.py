@@ -223,3 +223,65 @@ def test_substring_quote_does_not_inherit_another_speaker():
         ]
         == "CEO"
     )
+
+
+def test_full_call_batches_include_late_passages_and_keep_all_speakers():
+    from app.transcripts import full_transcript_batches
+
+    turns = [
+        {
+            "turn": i + 1,
+            "speaker": f"Speaker {i}",
+            "content": f"Warehouse operating detail number {i} is relevant to planned expansion.",
+        }
+        for i in range(180)
+    ]
+    turns.append(
+        {
+            "turn": 181,
+            "speaker": "CFO",
+            "content": "Annual warehouse openings reached twenty seven locations.",
+        }
+    )
+    turns.append(
+        {
+            "turn": 182,
+            "speaker": "CEO",
+            "content": "Annual warehouse openings reached twenty seven locations.",
+        }
+    )
+    batches = full_transcript_batches(turns)
+    assert len(batches) > 1
+    passages = [p for b in batches for p in b["passages"]]
+    assert any("twenty seven" in p["text"] for p in passages)
+    assert all(len(b["text"]) <= 7500 and len(b["passages"]) <= 32 for b in batches)
+    repeated = next(p for p in passages if "twenty seven" in p["text"])
+    assert {o["speaker"] for o in repeated["occurrences"]} == {"CFO", "CEO"}
+
+
+def test_full_call_retains_short_negations_and_every_source_character():
+    from app.transcripts import full_transcript_batches
+
+    turns = [
+        {
+            "turn": 1,
+            "speaker": "CEO",
+            "content": "Not yet. Demand remains below target. No. "
+            + ("Capacity is constrained. " * 70),
+        },
+        {"turn": 2, "speaker": "CFO", "content": "Yes."},
+    ]
+    batches = full_transcript_batches(turns)
+    catalog = [p for b in batches for p in b["passages"]]
+    for turn in turns:
+        occurrences = sorted(
+            [
+                (o["start"], o["end"])
+                for p in catalog
+                for o in p["occurrences"]
+                if o["turn"] == turn["turn"]
+            ]
+        )
+        rebuilt = " ".join(turn["content"][a:b] for a, b in occurrences)
+        assert rebuilt.strip() == turn["content"].strip()
+    assert any(p["text"] == "Yes." for p in catalog)
