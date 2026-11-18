@@ -86,7 +86,9 @@ export default function App() {
   const activeJobs =
     detail?.jobs.filter((j) => j.status === 'running' || j.status === 'queued') ?? [];
   const running = activeJobs.length > 0;
-  const refreshing = activeJobs.some((j) => j.kind === 'refresh');
+  const refreshing = activeJobs.some(
+    (j) => j.kind === 'refresh' && j.payload?.waiting_for !== 'groq',
+  );
   const analyzing = activeJobs.some((j) => j.kind === 'analysis');
   useEffect(() => {
     if (selected === null) return;

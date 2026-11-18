@@ -72,7 +72,10 @@ export type Job = {
   created_at: string;
   finished_at: string | null;
   available_at?: string;
-  payload?: { progress?: { phase: string; completed_batches: number; total_batches: number } };
+  payload?: {
+    waiting_for?: 'groq';
+    progress?: { phase: string; completed_batches: number; total_batches: number };
+  };
 };
 export type Analysis = {
   id: number;

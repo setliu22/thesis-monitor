@@ -246,3 +246,38 @@ test('financial refresh does not block a Groq comparison of saved filings', asyn
   expect(screen.getByRole('button', { name: 'Sync in progress' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Compare with latest earnings' })).toBeEnabled();
 });
+
+test('optional Groq mapping wait is not displayed as SEC syncing', async () => {
+  backend();
+  const original = fetch;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (url === '/api/companies/1')
+        return {
+          ok: true,
+          json: async () => ({
+            ...detail,
+            jobs: [
+              {
+                id: 12,
+                kind: 'refresh',
+                status: 'queued',
+                attempts: 0,
+                error: 'Waiting for Groq allowance.',
+                created_at: '2026-11-18',
+                finished_at: null,
+                payload: { waiting_for: 'groq' },
+              },
+            ],
+          }),
+        };
+      return original(url, options);
+    }),
+  );
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+  await screen.findByText('No SEC data yet');
+  expect(screen.getByRole('button', { name: 'Refresh SEC data' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: 'Sync in progress' })).not.toBeInTheDocument();
+});

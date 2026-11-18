@@ -69,6 +69,8 @@ def claim_job(sessions, worker_id: str, max_attempts=3, lease_seconds=180, kind=
             return None
         job.status = "running"
         job.owner = worker_id
+        if "waiting_for" in (job.payload or {}):
+            job.payload = {k: v for k, v in job.payload.items() if k != "waiting_for"}
         job.attempts += 1
         job.lease_until = after(lease_seconds)
         s.flush()
@@ -142,4 +144,5 @@ def defer_job(sessions, job_id, owner, reason, delay):
         job.lease_until = None
         job.owner = None
         job.error = str(reason)[:500]
+        job.payload = dict(job.payload or {}) | {"waiting_for": "groq"}
         job.attempts = max(0, job.attempts - 1)

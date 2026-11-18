@@ -172,3 +172,16 @@ def test_refresh_worker_bypasses_older_groq_analysis(sessions, monkeypatch):
         assert s.get(Job, analysis.id).status == "queued"
         assert s.get(Job, refresh.id).status == "succeeded"
     assert calls == ["refresh"]
+
+
+def test_groq_deferral_marks_resource_and_clears_when_work_restarts(sessions):
+    from app.jobs import defer_job
+
+    with sessions.begin() as s:
+        queued = enqueue_refresh(s, 1)
+    job = claim_job(sessions, "worker")
+    defer_job(sessions, job.id, "worker", "Waiting for Groq", 0)
+    with sessions() as s:
+        assert s.get(Job, queued.id).payload["waiting_for"] == "groq"
+    resumed = claim_job(sessions, "worker")
+    assert "waiting_for" not in resumed.payload
