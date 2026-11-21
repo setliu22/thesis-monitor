@@ -72,7 +72,7 @@ def period_anchor(facts):
             f["end"]
             for tags in facts.get("facts", {}).values()
             for body in tags.values()
-            for values in body.get("units", {}).values()
+            for values in (body.get("units") or {}).values()
             for f in values
             if f.get("start")
             and f.get("end")
@@ -128,7 +128,7 @@ def apply_mappings(facts, registry):
         if (
             body is None
             or identity(
-                {"label": body.get("label"), "description": body.get("description")}
+                {"label": body.get("label") or "", "description": body.get("description") or ""}
             )
             != item["definition_digest"]
         ):
@@ -206,17 +206,18 @@ def investigate(facts, registry, runner=None):
     candidates = []
     for ns, tags in facts.get("facts", {}).items():
         for tag, body in tags.items():
-            unit = "USD/shares" if "USD/shares" in body.get("units", {}) else "USD"
+            units = body.get("units") or {}
+            unit = "USD/shares" if "USD/shares" in units else "USD"
             values = [
                 f
-                for f in body.get("units", {}).get(unit, [])
+                for f in units.get(unit, [])
                 if f.get("end") == anchor
                 and f.get("form") in ("10-K", "10-Q", "10-K/A", "10-Q/A")
             ]
             if not values:
                 continue
             text = clean(
-                tag + " " + body.get("label", "") + " " + body.get("description", "")
+                tag + " " + (body.get("label") or "") + " " + (body.get("description") or "")
             )
             if any(
                 word in text
@@ -237,8 +238,8 @@ def investigate(facts, registry, runner=None):
                     {
                         "namespace": ns,
                         "tag": tag,
-                        "label": body.get("label", ""),
-                        "description": body.get("description", "")[:900],
+                        "label": body.get("label") or "",
+                        "description": (body.get("description") or "")[:900],
                         "unit": unit,
                         "period": anchor,
                     }
@@ -304,7 +305,7 @@ def investigate(facts, registry, runner=None):
                 continue
             body = facts["facts"][candidate["namespace"]][candidate["tag"]]
             expected = "USD/shares" if p["metric"] == "diluted_eps" else "USD"
-            vals = body.get("units", {}).get(expected, [])
+            vals = (body.get("units") or {}).get(expected, [])
             valid_periods = set()
             for f in vals:
                 try:
@@ -380,7 +381,7 @@ def investigate(facts, registry, runner=None):
                 else "Requires definition review; automatic checks insufficient",
                 "structural_checks_passed": structural,
                 "definition_digest": identity(
-                    {"label": body.get("label"), "description": body.get("description")}
+                    {"label": body.get("label") or "", "description": body.get("description") or ""}
                 ),
                 "model": settings.groq_model,
                 "at": at,

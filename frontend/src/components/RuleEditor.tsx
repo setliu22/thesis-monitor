@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Pencil, ArrowUpRight } from 'lucide-react';
+import { Plus, X, Pencil } from 'lucide-react';
 import { labels, operators, format, instantMetrics, metricUnit } from '../api';
 import type { Rule } from '../types';
 export type RuleDraft = Omit<Rule, 'id' | 'group_key' | 'version'>;
@@ -46,23 +46,15 @@ export default function RuleEditor({
   return (
     <section className="panel">
       <div className="section-heading">
-        <div>
-          <span className="eyebrow">RULES</span>
-          <h2>Monitoring rules</h2>
-        </div>
+        <h2>Monitoring rules</h2>
         <button className="button secondary" onClick={() => open()}>
           <Plus size={15} />
           Add rule
         </button>
       </div>
-      <p className="muted">Choose a metric, reporting period, and threshold for each rule.</p>
       {rules.length === 0 && editing === undefined && (
         <div className="inline-empty">
           <p>No monitoring rules yet.</p>
-          <span>Start with revenue growth, margins, or cash generation.</span>
-          <button className="text-button" onClick={() => open()}>
-            Use a suggested growth rule <ArrowUpRight size={15} />
-          </button>
         </div>
       )}
       <div className="rule-list">
@@ -74,7 +66,7 @@ export default function RuleEditor({
               <p>
                 {labels[r.metric]} {operators[r.operator]}{' '}
                 {format(r.threshold, metricUnit(r.metric))} ·{' '}
-                {instantMetrics.has(r.metric) ? 'Instant balance' : r.period_kind} · v{r.version}
+                {instantMetrics.has(r.metric) ? 'Instant balance' : r.period_kind}
               </p>
             </div>
             <span className="quiet-label">{r.enabled ? 'Active' : 'Paused'}</span>

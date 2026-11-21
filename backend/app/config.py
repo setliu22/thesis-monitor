@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     groq_tokens_per_day: int = Field(default=180000, ge=1000)
     groq_requests_per_minute: int = Field(default=25, ge=1)
     groq_requests_per_day: int = Field(default=900, ge=1)
+    transcript_followup_days: int = Field(default=14, ge=1, le=30)
+    transcript_retry_hours: int = Field(default=6, ge=1, le=24)
     production: bool = False
     app_origin: str = ""
     owner_password: str = ""

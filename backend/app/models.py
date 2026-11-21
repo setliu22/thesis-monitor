@@ -125,8 +125,37 @@ class Job(Entity):
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class Review(Entity):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id",
+            "filing_id",
+            "thesis_id",
+            "model",
+            "version",
+            name="uq_review_identity",
+        ),
+    )
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
+    filing_id: Mapped[int] = mapped_column(ForeignKey("filings.id"))
+    thesis_id: Mapped[int] = mapped_column(ForeignKey("theses.id"))
+    model: Mapped[str] = mapped_column(String(100))
+    version: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(30), default="scheduled")
+    state: Mapped[dict] = mapped_column(JSON, default=dict)
+    next_attempt: Mapped[str | None] = mapped_column(String(40))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(String(40), default=now)
+
+
 class Analysis(Entity):
     __tablename__ = "analyses"
+    __table_args__ = (
+        UniqueConstraint("review_id", "stage_key", name="uq_analysis_stage"),
+    )
+    review_id: Mapped[int | None] = mapped_column(ForeignKey("reviews.id"), index=True)
+    stage_key: Mapped[str | None] = mapped_column(String(64))
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     filing_id: Mapped[int] = mapped_column(ForeignKey("filings.id"))
     thesis_id: Mapped[int] = mapped_column(ForeignKey("theses.id"))

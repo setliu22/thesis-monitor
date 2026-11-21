@@ -101,10 +101,12 @@ export default function Trend({
           {lowerIsBetter ? ' · Lower balances are shown in green' : ''}.
         </p>
       )}
-      <div className="chart-labels">
-        <span>{date(valid[0].end)}</span>
-        <span>{date(valid.at(-1)!.end)}</span>
-      </div>
+      {!compact && (
+        <div className="chart-labels">
+          <span>{date(valid[0].end)}</span>
+          <span>{date(valid.at(-1)!.end)}</span>
+        </div>
+      )}
     </div>
   );
 }

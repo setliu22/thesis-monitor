@@ -1,6 +1,6 @@
 # Thesis — Investment Thesis Monitor
 
-A workspace for following US companies through SEC filings. Write a thesis, choose the financial changes worth watching, and inspect the filing evidence when a rule triggers.
+A workspace for following US companies through SEC filings. Save your thesis and numeric rules; new eligible earnings filings are reviewed against the thesis automatically when Groq is configured.
 
 **React + TypeScript · FastAPI · PostgreSQL · SQLAlchemy/Alembic · durable Python worker**
 
@@ -11,7 +11,6 @@ the website, API, background worker, and email process, waits for the database a
 website to respond, then opens the browser. Closing the startup terminal or browser
 does not stop the services. Reopening the app reuses the same supervisor and ports.
 Stopped service processes are restarted automatically while the launcher is running.
-Cloud scheduled monitoring remains independent of this local launcher.
 
 Alternatively, run `npm start` from the project root, or double-click
 `Start Thesis Monitor.command`. Run `npm stop` to stop services owned by the launcher.
@@ -19,7 +18,7 @@ Startup logs are private and ignored by Git under `work/local-app/`.
 The macOS app entry point is a native arm64 executable. Rebuild it with
 `scripts/build_macos_launcher.sh` after changing its C source or Info.plist.
 A saved localhost browser bookmark alone cannot start a stopped server; use the app
-launcher. The hosted website does not require starting local services.
+launcher.
 
 ## Start locally with Docker
 
@@ -29,15 +28,15 @@ Install Docker Desktop (including Compose), then from this directory:
 cp .env.example .env
 ```
 
-Edit `.env` and set `SEC_USER_AGENT` to your name and a **real** contact email. Leave `GROQ_API_KEY` empty unless you want optional model analysis. Do not commit `.env`.
+Edit `.env` and set `SEC_USER_AGENT` to your name and a **real** contact email. Set `GROQ_API_KEY` to enable automatic thesis reviews; without it, financial monitoring still works. `ALPHAVANTAGE_API_KEY` enables matching earnings-call follow-up. Do not commit `.env`.
 
 ```sh
 docker compose up --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). Your watchlist starts empty. Add the stocks you follow. Click **Refresh SEC data**, then write your own thesis and save monitoring rules. Suggested thresholds are examples; none are enabled automatically.
+Open [http://localhost:8080](http://localhost:8080). Your watchlist starts empty. Add the stocks you follow, write your thesis, and save any numeric monitoring rules. The first import is a bounded baseline; later original 10-Q and 10-K filings are queued for thesis review. Suggested thresholds are examples; none are enabled automatically.
 
-The migration container runs before API and worker startup. PostgreSQL data persists in a named volume. Keep the worker running for scheduled refreshes. Alerts appear inside the app; there is no email delivery in this version.
+The migration container runs before the API and worker. PostgreSQL data persists in a named volume.
 
 ```sh
 docker compose logs -f worker
@@ -56,7 +55,7 @@ API reference: [http://localhost:8000/docs](http://localhost:8000/docs). Health:
 - Queue refreshes outside HTTP requests; inspect job status, attempts, failures, and data freshness.
 - Evaluate saved rules immediately; acknowledge alerts without deleting their evidence.
 - Export a JSON research brief with financial provenance, thesis, rules, filings, and alerts.
-- Optionally analyze bounded filing excerpts against a saved thesis using Groq. Only observations whose quotes occur in supplied text are shown. Interpretation remains model-generated.
+- Automatically compare new original 10-Q and 10-K filings with the saved thesis; request historical or rerun reviews manually. Results show claim-level support, challenges, mixed or insufficient evidence with saved-source citations. A filing review is available before a matching call transcript arrives.
 
 ## Local development
 
@@ -87,7 +86,7 @@ npm run dev
 
 Open [http://localhost:5174](http://localhost:5174). The port is fixed so local origin checks remain predictable; if occupied, stop the conflicting development server or configure both Vite and the API allowlist together. API and worker load `.env` from the project working directory. Restart both after changing environment settings.
 
-The `work/` directory, if present in this generated workspace, contains ignored local verification tools and logs. It is not part of the project or required to run it. Use the documented dependencies above for a new checkout.
+For local use, run PostgreSQL on your Mac and set `DATABASE_URL` in `.env` to the loopback address of that database. On macOS, install PostgreSQL with `brew install postgresql@18` and start it with `brew services start postgresql@18`. Create a database and an app login, update `.env`, and run the launcher. The launcher applies pending migrations to approved local targets and starts the API, website, monitoring worker, and email worker. Leave the Mac awake for reminders and monitoring.
 
 ## Tests
 
@@ -113,7 +112,7 @@ Without `TEST_DATABASE_URL`, backend tests use temporary SQLite databases; the P
 - **New filing, missing metrics:** submissions may appear before XBRL facts. The app shows pending status and retries on later refreshes.
 - **Unavailable metric:** source facts may be absent or lack a compatible comparison period. Click its card for the reason; missing data cannot trigger a numeric rule.
 - **No alert:** save an enabled rule, select the intended period, then evaluate. A threshold must actually be met. Existing alerts are deduplicated per rule version and observation.
-- **Optional analysis unavailable:** set `GROQ_API_KEY` and an account-supported `GROQ_MODEL`, restart services, save a thesis, then choose Analyze on a 10-K or 10-Q. Requests can incur provider charges. Selected excerpts and your thesis are sent only when an analysis job is requested.
+- **Thesis review unavailable:** set `GROQ_API_KEY` and an account-supported `GROQ_MODEL`, then restart the API and worker. Save a thesis and refresh SEC data; new filings are discovered by refresh and by the scheduled submissions check. Selected filing passages, transcript passages when available, and thesis claims are sent to Groq for review. Provider quota waits are queued; model conclusions remain interpretations, not verified investment advice.
 - **Stale data:** the last successful dataset stays visible after a failed refresh; errors appear in the activity feed.
 
 This is a single-user local app. Default database credentials are local development credentials, services bind to loopback, and there is no login. Add authentication and deployment-specific secrets/network controls before hosting it publicly.
@@ -121,6 +120,7 @@ This is a single-user local app. Default database credentials are local developm
 ## Read next
 
 - [Architecture and tradeoffs](docs/architecture.md)
+- [Automatic claim-review implementation and verification](docs/automatic-claim-review-report.md)
 - [Demo walkthrough](docs/demo.md)
 - [FDE interview guide](docs/interview-guide.md)
 - [Financial and operational limitations](docs/limitations.md)
@@ -132,7 +132,7 @@ Primary sources: [SEC public APIs](https://www.sec.gov/search-filings/edgar-appl
 
 ## Always-on deployment and email
 
-The source now includes a transactional email outbox, independent notification dispatcher, hosted password protection, and a Render Blueprint for the web app, SEC worker, email worker and managed PostgreSQL. See [hosting-and-email.md](docs/hosting-and-email.md) for activation and failure semantics. These services have **not** been provisioned. Email needs a Resend API key and verified sender. Closing the browser does not stop workers; turning off the laptop still stops a local deployment.
+The local launcher starts the monitoring and email workers. Email requires a Resend API key and verified sender. Keep the Mac awake for scheduled monitoring. See [Local monitoring and email](docs/hosting-and-email.md).
 
 
 ## Shared earnings calendar

@@ -38,6 +38,12 @@ def snapshot(s, company_id, kind, path, data):
 
 
 def ingest_company(sessions, company_id, client, job_id=None, owner=None):
+    from .jobs import report_progress
+
+    def progress(phase, completed):
+        if job_id:
+            report_progress(sessions, job_id, owner, phase, completed, 4)
+
     def guard(s):
         # Company first is the common lock order; then job ownership.
         company = s.scalar(
@@ -57,31 +63,13 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
         with sessions.begin() as s:
             guard(s)
             snapshot(s, company_id, "submissions", path, submissions)
-            recent = submissions.get("filings", {}).get("recent", {})
-            for i, accession in enumerate(recent.get("accessionNumber", [])):
-                form = recent["form"][i]
-                if form not in ("10-K", "10-Q", "8-K", "10-K/A", "10-Q/A"):
-                    continue
-                if s.scalar(
-                    select(Filing.id).where(
-                        Filing.company_id == company_id, Filing.accession == accession
-                    )
-                ):
-                    continue
-                s.add(
-                    Filing(
-                        company_id=company_id,
-                        accession=accession,
-                        form=form,
-                        filed=recent["filingDate"][i],
-                        report_date=recent.get(
-                            "reportDate", [""] * len(recent["form"])
-                        )[i],
-                        document=recent["primaryDocument"][i],
-                    )
-                )
+            from .discovery import persist_discovery
+
+            persist_discovery(s, s.get(Company, company_id), submissions)
+        progress("submissions", 1)
         path = f"/api/xbrl/companyfacts/CIK{cik}.json"
         facts = client.fetch_json(path)
+        progress("company facts", 2)
         with sessions() as s:
             registry = latest_registry(s, company_id)
         raw_facts = facts
@@ -165,6 +153,7 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
         from .groq_runtime import Deferred
 
         mapping_wait = None
+        progress("mapping", 2)
         try:
             registry = investigate(
                 facts,
@@ -183,6 +172,8 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
         except Deferred as exc:
             mapping_wait = exc
         observations = normalize_mapped(facts, registry)
+        if mapping_wait is None:
+            progress("saving", 3)
         with sessions.begin() as s:
             company = guard(s)
             snapshot(s, company_id, "companyfacts", path, raw_facts)
@@ -233,6 +224,13 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
                     select(Observation).where(Observation.company_id == company_id)
                 )
             }
+            previous_periods = {}
+            for observation in current.values():
+                if observation.active and observation.value is not None:
+                    series = (observation.metric, observation.kind)
+                    previous_periods[series] = max(
+                        previous_periods.get(series, ""), observation.period_end
+                    )
             s.execute(
                 update(Observation)
                 .where(Observation.company_id == company_id)
@@ -276,9 +274,10 @@ def ingest_company(sessions, company_id, client, job_id=None, owner=None):
             )
             company.last_success = now()
             company.last_error = None
-            evaluate_company(s, company_id)
+            evaluate_company(s, company_id, previous_periods)
         if mapping_wait:
             raise mapping_wait
+        progress("complete", 4)
     except Exception as exc:
         from .groq_runtime import Deferred
 

@@ -12,6 +12,12 @@ URL = "https://www.alphavantage.co/query"
 SOURCE_URL = "https://www.alphavantage.co/documentation/#earnings-call-transcripts"
 
 
+class TranscriptError(FeedError):
+    def __init__(self, message, kind="pending"):
+        self.kind = kind
+        super().__init__(message)
+
+
 def fiscal_quarter(html):
     soup = BeautifulSoup(html, "html.parser")
 
@@ -41,14 +47,27 @@ def parse_transcript(payload, ticker, quarter):
         or payload.get("symbol") != ticker
         or payload.get("quarter") != quarter
     ):
-        raise FeedError(
-            "Transcript unavailable for this company and fiscal quarter, or provider access is limited."
+        information = (
+            str(payload.get("Information") or payload.get("Note") or "")
+            if isinstance(payload, dict)
+            else ""
+        )
+        kind = "provider" if information else "malformed"
+        if (
+            any(
+                word in information.lower()
+                for word in ("premium", "invalid api key", "invalid apikey")
+            )
+            and "rate" not in information.lower()
+        ):
+            kind = "configuration"
+        raise TranscriptError(
+            "Transcript access is limited or the provider returned the wrong company or fiscal quarter.",
+            kind,
         )
     raw = payload.get("transcript")
     if not isinstance(raw, list) or not raw or len(raw) > 2000:
-        raise FeedError(
-            "Transcript has not been published or returned valid speaker turns yet."
-        )
+        raise TranscriptError("Transcript has not been published yet.", "pending")
     turns = []
     for i, row in enumerate(raw):
         if (
@@ -56,10 +75,14 @@ def parse_transcript(payload, ticker, quarter):
             or not isinstance(row.get("content"), str)
             or not isinstance(row.get("speaker"), str)
         ):
-            raise FeedError("Transcript returned invalid speaker turns.")
+            raise TranscriptError(
+                "Transcript returned invalid speaker turns.", "malformed"
+            )
         content, speaker = clean(row["content"]), clean(row["speaker"])
         if not content or not speaker:
-            raise FeedError("Transcript returned empty speaker turns.")
+            raise TranscriptError(
+                "Transcript returned empty speaker turns.", "malformed"
+            )
         turns.append(
             {
                 "turn": i + 1,
@@ -73,11 +96,15 @@ def parse_transcript(payload, ticker, quarter):
 
 def fetch_transcript(ticker, quarter, key, sessions, transport=None):
     if not key:
-        raise FeedError("Transcript access needs ALPHAVANTAGE_API_KEY.")
+        raise TranscriptError(
+            "Transcript access needs ALPHAVANTAGE_API_KEY.", "configuration"
+        )
     if not re.fullmatch(r"[A-Z0-9.\-]{1,15}", ticker) or not re.fullmatch(
         r"20\d{2}Q[1-4]", quarter
     ):
-        raise FeedError("No verified fiscal quarter is available for this filing.")
+        raise TranscriptError(
+            "No verified fiscal quarter is available for this filing.", "unavailable"
+        )
 
     def load():
         try:
@@ -95,8 +122,17 @@ def fetch_transcript(ticker, quarter, key, sessions, transport=None):
                     },
                 ) as response:
                     if response.status_code != 200:
-                        raise FeedError(
-                            "Transcript provider unavailable; filing comparison is still available."
+                        kind = (
+                            "configuration"
+                            if response.status_code in (401, 403)
+                            else "provider"
+                            if response.status_code == 429
+                            or response.status_code >= 500
+                            else "unavailable"
+                        )
+                        raise TranscriptError(
+                            "Transcript provider unavailable; filing comparison is still available.",
+                            kind,
                         )
                     body = bytearray()
                     for part in response.iter_bytes():
@@ -115,16 +151,25 @@ def fetch_transcript(ticker, quarter, key, sessions, transport=None):
                 "turns": turns,
                 "source_url": SOURCE_URL,
             }
-        except (httpx.HTTPError, ValueError, UnicodeError):
+        except TranscriptError as exc:
+            raise FeedError(f"transcript-error:{exc.kind}:{exc}") from None
+        except httpx.HTTPError:
             raise FeedError(
-                "Transcript provider unavailable; filing comparison is still available."
+                "transcript-error:provider:Transcript provider is temporarily unavailable."
+            ) from None
+        except (ValueError, UnicodeError):
+            raise FeedError(
+                "transcript-error:malformed:Transcript provider returned an invalid response."
             ) from None
 
     payload, error = cached_feed(
         f"transcript:{ticker}:{quarter}", load, hours=24, sessions=sessions
     )
     if error:
-        raise FeedError(error)
+        if error.startswith("transcript-error:"):
+            _, kind, message = error.split(":", 2)
+            raise TranscriptError(message, kind)
+        raise TranscriptError(error, "pending")
     if not payload.get("turns"):
         raise FeedError("Transcript is loading; compare again shortly.")
     return payload

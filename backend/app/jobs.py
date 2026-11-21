@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select, or_, and_
-from .models import Company, Job, now
+from .models import Company, Job, Review, now
 
 
 def after(seconds):
@@ -69,6 +69,8 @@ def claim_job(sessions, worker_id: str, max_attempts=3, lease_seconds=180, kind=
             return None
         job.status = "running"
         job.owner = worker_id
+        job.error = None
+        job.payload = dict(job.payload or {}) | {"last_attempt_at": now()}
         if "waiting_for" in (job.payload or {}):
             job.payload = {k: v for k, v in job.payload.items() if k != "waiting_for"}
         job.attempts += 1
@@ -79,7 +81,12 @@ def claim_job(sessions, worker_id: str, max_attempts=3, lease_seconds=180, kind=
 
 
 def owned_job(session, job_id, owner):
-    job = session.scalar(select(Job).where(Job.id == job_id).with_for_update())
+    job = session.scalar(
+        select(Job)
+        .where(Job.id == job_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if (
         not job
         or job.status != "running"
@@ -109,8 +116,9 @@ def finish_job(sessions, job_id, owner):
         return True
 
 
-def fail_job(sessions, job_id, owner, error, delay=30, max_attempts=3):
+def fail_job(sessions, job_id, owner, error, delay=30, max_attempts=3, *, retry_status="retry_wait"):
     with sessions.begin() as s:
+        review = lock_job_review(s, job_id)
         try:
             job = owned_job(s, job_id, owner)
         except RuntimeError:
@@ -121,12 +129,35 @@ def fail_job(sessions, job_id, owner, error, delay=30, max_attempts=3):
         job.available_at = after(delay)
         if job.status == "failed":
             job.finished_at = now()
+        if review:
+            review.status = "failed" if job.status == "failed" else retry_status
+            review.last_error = error[:1000]
+            review.next_attempt = None if job.status == "failed" else job.available_at
+            review.updated_at = now()
+            if job.status == "failed":
+                state = dict(review.state or {})
+                if state.get("filing_ready"):
+                    state["call"] = dict(
+                        state.get("call", {}),
+                        status="failed",
+                        reason="Call enrichment failed; the filing review remains available.",
+                    )
+                else:
+                    state["filing_status"] = "failed"
+                review.state = state
         return True
 
 
 def analysis_progress(sessions, job_id, owner, phase, completed, total):
+    report_progress(sessions, job_id, owner, phase, completed, total)
+
+
+def report_progress(sessions, job_id, owner, phase, completed, total):
     with sessions.begin() as s:
-        job = owned_job(s, job_id, owner)
+        try:
+            job = owned_job(s, job_id, owner)
+        except RuntimeError:
+            return False
         data = dict(job.payload or {})
         data["progress"] = {
             "phase": phase,
@@ -134,15 +165,42 @@ def analysis_progress(sessions, job_id, owner, phase, completed, total):
             "total_batches": total,
         }
         job.payload = data
+        return True
 
 
-def defer_job(sessions, job_id, owner, reason, delay):
+def defer_job(sessions, job_id, owner, reason, delay, kind="quota"):
     with sessions.begin() as s:
+        review = lock_job_review(s, job_id)
         job = owned_job(s, job_id, owner)
+        payload = dict(job.payload or {})
+        if kind == "groq_provider":
+            failures = min(int(payload.get("provider_wait_count", 0)) + 1, 5)
+            payload["provider_wait_count"] = failures
+            delay = max(delay, min(900, 60 * 2 ** (failures - 1)))
         job.status = "queued"
         job.available_at = after(delay)
         job.lease_until = None
         job.owner = None
         job.error = str(reason)[:500]
-        job.payload = dict(job.payload or {}) | {"waiting_for": "groq"}
+        job.payload = payload | {
+            "waiting_for": "groq",
+            "wait_kind": kind,
+        }
+        if review:
+            review.status = {"quota": "quota_wait", "groq_provider": "provider_wait"}.get(kind, "scheduled")
+            review.next_attempt = job.available_at
+            review.last_error = str(reason)[:500]
+            review.updated_at = now()
         job.attempts = max(0, job.attempts - 1)
+
+
+def lock_job_review(session, job_id):
+    job = session.get(Job, job_id)
+    if not job or not job.payload.get("review_id"):
+        return None
+    session.scalar(
+        select(Company).where(Company.id == job.company_id).with_for_update()
+    )
+    return session.scalar(
+        select(Review).where(Review.id == job.payload["review_id"]).with_for_update()
+    )

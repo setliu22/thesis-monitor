@@ -33,15 +33,7 @@ export default function CompanyDetail({
       <div className="company-banner">
         <div className="company-identity">
           <div className="ticker-mark">{detail.company.ticker.slice(0, 4)}</div>
-          <div>
-            <div className="line">
-              <h2>{detail.company.name}</h2>
-              <span className="badge neutral">US EQUITY</span>
-            </div>
-            <p>
-              {detail.company.ticker} <span>·</span> SEC filings <span>·</span> USD
-            </p>
-          </div>
+          <h2>{detail.company.name}</h2>
         </div>
         <div className="segmented">
           <button
@@ -101,17 +93,6 @@ export default function CompanyDetail({
                   />
 
                   <span>{o ? date(o.end) : 'Metric unavailable'}</span>
-                  {key.endsWith('_growth') && o?.value != null ? (
-                    <span className="metric-note">Year over year</span>
-                  ) : (
-                    <span className="metric-note">
-                      {instantMetrics.has(key)
-                        ? 'Balance at reporting date'
-                        : kind === 'quarter'
-                          ? 'Discrete quarter'
-                          : 'Full fiscal year'}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -153,16 +134,6 @@ export default function CompanyDetail({
                   <strong>
                     {format(s.value, evidence === 'diluted_eps' ? 'USD/share' : 'USD')}
                   </strong>
-                  {s.url && (
-                    <a
-                      href={s.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="Open source filing"
-                    >
-                      <ArrowUpRight size={17} />
-                    </a>
-                  )}
                 </div>
               ))}
             </>
@@ -189,7 +160,6 @@ export default function CompanyDetail({
             </i>
           </div>
           <div>
-            <span className="eyebrow">SEC DATA</span>
             <h2>No SEC data yet</h2>
             <p>
               {' '}

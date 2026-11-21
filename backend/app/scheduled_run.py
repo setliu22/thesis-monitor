@@ -12,6 +12,8 @@ logger = logging.getLogger("thesis.scheduled")
 
 
 def drain_notifications():
+    if not configured():
+        return
     started = time.monotonic()
     sends = receipts = 0
     for _ in range(100):
@@ -31,8 +33,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     if not settings.database_url or not settings.sec_user_agent:
         raise RuntimeError("DATABASE_URL and SEC_USER_AGENT must be configured")
-    if not configured():
-        raise RuntimeError("Configure RESEND_API_KEY, EMAIL_FROM and ALERT_EMAIL")
+    # Email is optional; discovery and narrative reviews must run unattended.
+
     started = time.monotonic()
     # Existing outbox work gets its own budget before slow ingestion begins.
     drain_notifications()

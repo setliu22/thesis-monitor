@@ -108,36 +108,44 @@ def calendar(
     start: date,
     end: date,
     invested_only: bool = True,
+    context_company_id: int | None = Query(default=None, ge=1),
     s: Session = Depends(get_session),
 ):
     if (end - start).days < 0 or (end - start).days > 62:
         raise HTTPException(422, "Request at most 62 days")
     companies = {c.id: c for c in s.scalars(select(Company))}
-    from .event_results import company_context
+    from .event_results import company_context, metric_explanation
 
-    watched = [
-        c for c in companies.values() if c.watched and (not invested_only or c.invested)
-    ]
-    ids = [c.id for c in watched]
-    facts = (
-        list(
+    context_company = None
+    facts = []
+    thesis = None
+    if context_company_id is not None:
+        context_company = companies.get(context_company_id)
+        if not context_company or not context_company.watched:
+            raise HTTPException(404, "Selected company not found")
+        facts = list(
             s.scalars(
                 select(Observation).where(
-                    Observation.company_id.in_(ids),
-                    Observation.metric.in_(["debt", "cash", "operating_cash_flow"]),
+                    Observation.company_id == context_company.id,
+                    Observation.active.is_(True),
+                    Observation.metric.in_(
+                        [
+                            "debt",
+                            "cash",
+                            "operating_cash_flow",
+                            "revenue_growth",
+                            "operating_margin",
+                        ]
+                    ),
                 )
             )
         )
-        if ids
-        else []
-    )
-    theses = {}
-    for t in s.scalars(
-        select(ThesisVersion)
-        .where(ThesisVersion.company_id.in_(ids))
-        .order_by(ThesisVersion.version)
-    ):
-        theses[t.company_id] = t
+        thesis = s.scalar(
+            select(ThesisVersion)
+            .where(ThesisVersion.company_id == context_company.id)
+            .order_by(ThesisVersion.version.desc())
+            .limit(1)
+        )
     events = []
     for event in s.scalars(
         select(MarketEvent)
@@ -159,9 +167,18 @@ def calendar(
                 "status": "pending",
                 "reason": "The event changed; waiting for its updated result.",
             }
+        if outcome.get("status") == "reported":
+            outcome["metrics"] = [
+                metric
+                | {
+                    "why_it_matters": metric.get("why_it_matters")
+                    or metric_explanation(event.category, metric)
+                }
+                for metric in outcome.get("metrics", [])
+            ]
         context = (
-            [company_context(event, c, facts, theses.get(c.id)) for c in watched]
-            if outcome.get("status") == "reported"
+            [company_context(event, context_company, facts, thesis, outcome)]
+            if outcome.get("status") == "reported" and context_company
             else []
         )
         events.append(

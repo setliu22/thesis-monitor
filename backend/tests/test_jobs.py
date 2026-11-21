@@ -77,6 +77,22 @@ def test_worker_processes_queue_and_persists_success(sessions):
     assert not process_once(sessions, Client(), "test-owner")
 
 
+def test_refresh_job_records_progress_from_sec_ingest(sessions):
+    from app.worker import process_once
+    from test_ingest import Client
+
+    with sessions.begin() as s:
+        job = enqueue_refresh(s, 1)
+    assert process_once(sessions, Client(), "progress-owner", kind="refresh")
+    with sessions() as s:
+        progress = s.get(Job, job.id).payload.get("progress")
+    assert progress == {
+        "phase": "complete",
+        "completed_batches": 4,
+        "total_batches": 4,
+    }
+
+
 def test_worker_does_not_expose_database_payloads_in_job_errors(sessions, monkeypatch):
     from app.worker import process_once
     from sqlalchemy.exc import SQLAlchemyError

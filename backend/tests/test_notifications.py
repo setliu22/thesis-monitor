@@ -1,10 +1,11 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 import httpx
-from sqlalchemy import select
-from app.models import Alert, Delivery, RuleVersion
-from app.notifications import queue_email, deliver_once
-from app.config import settings
 import pytest
+from app.config import settings
+from app.models import Alert, Company, Delivery, RuleVersion
+from app.notifications import deliver_once, queue_email
+from sqlalchemy import select
 
 
 @pytest.fixture(autouse=True)
@@ -168,3 +169,76 @@ def test_rule_evaluation_queues_one_delivery_per_alert(sessions):
         # One seeded alert and one newly evaluated observation.
         assert len(list(s.scalars(select(Alert)))) == 2
         assert len(list(s.scalars(select(Delivery)))) == 2
+
+
+def test_alert_email_explains_the_rule_and_value_instead_of_dumping_json(sessions):
+    with sessions.begin() as s:
+        company = Company(
+            ticker="RRX", name="Regal Rexnord Corp", cik="0000082811"
+        )
+        s.add(company)
+        s.flush()
+        rule = RuleVersion(
+            company_id=company.id,
+            group_key="growth",
+            version=1,
+            name="56",
+            metric="revenue_growth",
+            operator="lt",
+            threshold=56,
+        )
+        s.add(rule)
+        s.flush()
+        alert = Alert(
+            company_id=company.id,
+            rule_id=rule.id,
+            observation_key="rrx-growth",
+            title="56: condition met",
+            evidence={
+                "metric": "revenue_growth",
+                "start": "2026-07-01",
+                "end": "2026-09-30",
+                "kind": "quarter",
+                "value": "6.078824315297261189044756200",
+                "unit": "%",
+                "sources": [
+                    {
+                        "start": "2026-07-01",
+                        "end": "2026-09-30",
+                        "filed": "2026-11-03",
+                        "form": "10-Q",
+                        "unit": "USD",
+                        "value": "1588000000",
+                    },
+                    {
+                        "start": "2025-07-01",
+                        "end": "2025-09-30",
+                        "filed": "2026-11-03",
+                        "form": "10-Q",
+                        "unit": "USD",
+                        "value": "1497000000",
+                    },
+                ],
+                "derivation": "year_over_year",
+                "threshold": "56.00000000",
+                "operator": "lt",
+                "rule_name": "56",
+            },
+        )
+        s.add(alert)
+        s.flush()
+
+        queue_email(s, alert)
+
+    with sessions() as s:
+        payload = s.scalar(select(Delivery)).payload
+
+    assert payload["subject"] == "RRX alert: Revenue growth below 56%"
+    assert "Revenue growth was 6.1%, below your threshold of 56%." in payload["text"]
+    assert "Period: Jul 1–Sep 30, 2026" in payload["text"]
+    assert "This quarter: $1.59B" in payload["text"]
+    assert "Same quarter last year: $1.50B" in payload["text"]
+    assert "10-Q filed Nov 3, 2026" in payload["text"]
+    assert "Rule: 56" not in payload["text"]
+    assert '"sources"' not in payload["text"]
+    assert "Evidence:" not in payload["text"]

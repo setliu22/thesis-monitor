@@ -273,9 +273,6 @@ nav {
 .status-dot.green {
   background: #80a566;
 }
-.sidebar-bottom {
-  margin-top: auto;
-}
 .source-note {
   border: 1px solid #3a5548;
   margin: 30px 8px 20px;
@@ -303,35 +300,6 @@ nav {
   font-size: 9px;
   color: #bbd29e;
 }
-.profile {
-  margin: 18px -18px 0;
-  padding: 19px 22px;
-  border-top: 1px solid #345246;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.profile > div {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #69795d;
-  border-radius: 50%;
-  color: #d5ddbf;
-  font-size: 9px;
-}
-.profile > span:nth-child(2) {
-  flex: 1;
-  color: #d8e3d9;
-  font-size: 10px;
-}
-.profile small {
-  display: block;
-  font-size: 9px;
-  color: #87a18f;
-  margin-top: 4px;
-}
 .main-shell {
   margin-left: 244px;
   width: calc(100% - 244px);
@@ -355,19 +323,6 @@ nav {
 .breadcrumbs strong {
   font-weight: 500;
   color: #566252;
-}
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.local-badge {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  font-size: 10px;
-  color: #808a7b;
-  margin-right: 8px;
 }
 .notification-button {
   position: relative;
@@ -451,30 +406,6 @@ main {
 }
 .button.secondary:hover {
   background: #eff2e8;
-}
-.freshness {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 9px;
-  padding-bottom: 19px;
-  border-bottom: 1px solid var(--line);
-  color: #90978a;
-  flex-wrap: wrap;
-}
-.freshness-divider {
-  height: 10px;
-  width: 1px;
-  background: #d8dfd0;
-  margin: 0 4px;
-}
-.freshness-source {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 9px;
-  letter-spacing: 0.6px;
 }
 .company-banner {
   display: flex;
@@ -710,25 +641,6 @@ main {
   top: auto;
   bottom: 28px;
 }
-.overview-lower {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-.overview-lower .panel {
-  min-width: 0;
-}
-.thesis-preview > h2 {
-  margin: 11px 0;
-}
-.thesis-preview > p {
-  font-size: 11px;
-  color: #8c9682;
-  margin-bottom: 25px;
-  white-space: pre-wrap;
-  max-height: 180px;
-  overflow: auto;
-}
 .text-button {
   border: 0;
   background: none;
@@ -779,27 +691,6 @@ main {
   height: 35px;
   border-radius: 50%;
   margin: auto;
-}
-.page-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  border-top: 1px solid var(--line);
-  padding: 20px 0 22px;
-  font-size: 9px;
-  color: #a3ab98;
-  margin-top: 25px;
-}
-.page-footer > span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.footer-divider {
-  width: 1px;
-  height: 10px;
-  background: #dce2d2;
-  margin: 0 4px;
 }
 .notice {
   padding: 12px 15px;
@@ -889,6 +780,47 @@ label select {
   gap: 15px;
   margin-top: 15px;
 }
+.form-footer.thesis-save {
+  justify-content: flex-end;
+}
+.thesis-history {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.thesis-history .section-heading {
+  margin-bottom: 8px;
+}
+.thesis-history h3 {
+  font-size: 14px;
+}
+.thesis-version-list {
+  display: grid;
+}
+.thesis-version {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.thesis-version details {
+  flex: 1;
+  min-width: 0;
+}
+.thesis-version summary {
+  cursor: pointer;
+  color: #52644b;
+  font-weight: 550;
+}
+.thesis-version details p {
+  margin-top: 12px;
+  white-space: pre-wrap;
+}
+.text-button.danger {
+  color: #a8413d;
+}
 .form-footer > span {
   font-size: 9px;
   color: #9aa48e;
@@ -940,22 +872,8 @@ label select {
 }
 .evaluate-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 21px 24px;
-  border: 1px solid #dce4cd;
-  border-radius: 7px;
-  background: #f0f4e7;
+  justify-content: flex-end;
   margin-bottom: 20px;
-}
-.evaluate-bar strong {
-  font-size: 12px;
-}
-.evaluate-bar p {
-  font-size: 10px;
-  color: #93a080;
-  margin-top: 4px;
 }
 .alert-card {
   border-top: 1px solid #e6ebde;
@@ -1293,10 +1211,6 @@ td {
     margin-right: 2px;
     padding: 15px 12px;
   }
-  .profile {
-    margin-left: -12px;
-    margin-right: -12px;
-  }
   .watchlist-title {
     margin-left: 10px;
   }
@@ -1312,12 +1226,8 @@ td {
   .connect-panel {
     padding: 30px;
   }
-  .overview-lower,
   .activity-grid {
     grid-template-columns: 1fr;
-  }
-  .page-footer > span:last-child {
-    display: none;
   }
   .company-identity h2 {
     font-size: 14px;
@@ -1349,7 +1259,6 @@ td {
   .workspace-label,
   .watchlist-title,
   .watchlist,
-  .sidebar-bottom,
   .add-form {
     display: none;
   }
@@ -1377,12 +1286,6 @@ td {
     height: 52px;
     padding: 0 20px;
   }
-  .local-badge {
-    display: none;
-  }
-  .topbar-right {
-    gap: 8px;
-  }
   main {
     padding: 24px 18px 0;
   }
@@ -1399,13 +1302,6 @@ td {
   .page-actions {
     align-self: flex-start;
     margin: 0;
-  }
-  .freshness {
-    font-size: 8px;
-    gap: 5px;
-  }
-  .freshness-source {
-    display: none;
   }
   .company-banner {
     align-items: flex-start;
@@ -1454,9 +1350,6 @@ td {
   .connect-panel h2 {
     font-size: 24px;
   }
-  .overview-lower {
-    gap: 0;
-  }
   h2 {
     font-size: 17px;
   }
@@ -1487,9 +1380,6 @@ td {
   }
   .settings-dialog {
     padding: 22px;
-  }
-  .page-footer {
-    font-size: 8px;
   }
   .badge {
     font-size: 7px;
@@ -1746,6 +1636,21 @@ td {
   font-size: 12px;
   padding: 6px 10px;
 }
+.calendar-context-control {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 22px 18px;
+}
+.calendar-context-control label {
+  flex: 0 1 340px;
+}
+.calendar-context-control select {
+  display: block;
+  margin-top: 6px;
+  min-height: 38px;
+}
 .calendar-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1920,7 +1825,7 @@ td {
 .calendar-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   padding: 16px 20px;
   font-size: 10px;
@@ -1963,11 +1868,6 @@ td {
   color: #5e6b54;
   margin: 15px 0 6px;
 }
-.agenda-empty span {
-  font-size: 11px;
-  line-height: 1.7;
-  display: block;
-}
 .agenda-event {
   padding: 22px 20px;
   border-bottom: 1px solid #edf0e9;
@@ -2005,6 +1905,24 @@ td {
 .agenda-upcoming {
   padding: 22px 18px;
 }
+.sync-progress {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #e3e7df;
+  border-radius: 12px;
+  background: #fff;
+}
+.sync-progress p {
+  margin: 0 0 9px;
+  color: #53634b;
+  font-size: 12px;
+}
+.sync-progress progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  accent-color: #315b42;
+}
 .agenda-upcoming button {
   display: flex;
   align-items: center;
@@ -2024,12 +1942,6 @@ td {
   font-size: 10px;
   color: #9aa18e;
   min-width: 40px;
-}
-.calendar-data-note {
-  font-size: 12px;
-  color: #858b7e;
-  margin: 20px 0 12px;
-  line-height: 1.6;
 }
 .calendar-source-status {
   font-size: 11px;
@@ -2112,8 +2024,8 @@ td {
   font-size: 11px;
 }
 .earnings-status {
-  margin: 0 0 22px;
-  font-size: 11px;
+  margin: 0 0 16px;
+  font-size: 14px;
   line-height: 1.6;
   color: #788370;
 }
@@ -2297,6 +2209,15 @@ td {
   .calendar-toolbar {
     padding: 16px 10px;
   }
+  .calendar-context-control {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 10px 14px;
+  }
+  .calendar-context-control label {
+    flex-basis: auto;
+  }
   .calendar-month-title {
     flex-direction: column;
     align-items: flex-start;
@@ -2365,9 +2286,6 @@ td {
   .agenda-upcoming {
     border-left: 0;
   }
-  .calendar-data-note {
-    font-size: 10px;
-  }
   .calendar-source-status {
     font-size: 10px;
   }
@@ -2417,13 +2335,6 @@ td {
   padding-top: 16px;
 }
 .comparison-evidence summary,
-.filing-archive > summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.filing-archive[open] > summary {
-  margin-bottom: 22px;
-}
 
 .narrative-highlights > h3 {
   font-size: 14px;
@@ -2462,6 +2373,7 @@ td {
 }
 .event-result-metrics {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
   gap: 10px;
 }
 .event-result-metric {
@@ -2475,6 +2387,14 @@ td {
   font-size: 11px;
   color: #64715c;
 }
+.event-result-metric .event-result-metric-eyebrow {
+  color: #829078;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
 .event-result-metric > strong {
   display: block;
   font-size: 22px;
@@ -2482,7 +2402,19 @@ td {
 }
 .event-result-metric p {
   font-size: 11px;
+  line-height: 1.5;
   margin: 3px 0;
+}
+.event-result-metric .event-metric-why {
+  border-top: 1px solid #e1e7da;
+  color: #5d6a56;
+  margin-top: 11px;
+  padding-top: 9px;
+}
+.event-metric-why b {
+  display: block;
+  color: #40533d;
+  margin-bottom: 3px;
 }
 .event-result-metric small {
   color: #7a8574;
@@ -2499,6 +2431,12 @@ td {
 }
 .event-company-context h4 {
   margin: 0 0 12px;
+}
+.event-company-context .event-stock-relation {
+  color: #344a37;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.65;
 }
 .event-company-context article + article {
   margin-top: 18px;
@@ -2538,4 +2476,85 @@ td {
 }
 .analysis-progress p {
   margin: 5px 0;
+}
+
+.agenda-upcoming-card {
+  background: #234638;
+  color: #f1f5e9;
+  border-radius: 14px;
+  margin-top: 20px;
+  border: 1px solid #365b49;
+}
+.agenda-upcoming-card .eyebrow,
+.agenda-upcoming-card .upcoming-day {
+  color: #c9d9ba;
+}
+.agenda-upcoming-card button {
+  color: inherit;
+  border-color: #45634e;
+}
+
+.calendar-side {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .calendar-side .calendar-agenda {
+    display: block;
+  }
+}
+
+.claim-review {
+  display: grid;
+  gap: 16px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.claim-review .review-heading h2 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.claim-review p {
+  margin: 0;
+}
+
+.claim-review .review-meta,
+.claim-review .review-status {
+  color: #526254;
+  font-size: 14px;
+}
+
+.review-answer {
+  max-width: 72ch;
+  overflow-wrap: anywhere;
+}
+
+.review-answer p + p {
+  margin-top: 10px;
+}
+
+.claim-review .review-action {
+  justify-self: start;
+  font-size: 14px;
+}
+
+/* Keep the company picker indicator aligned across browser-native select styles. */
+.mobile-watchlist select,
+.calendar-context-control select {
+  appearance: none;
+  padding-inline-end: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 6 5 5 5-5' fill='none' stroke='%234b5a40' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 10px center;
+  background-size: 14px 14px;
+  background-repeat: no-repeat;
+}
+
+@media (forced-colors: active) {
+  .mobile-watchlist select,
+  .calendar-context-control select {
+    appearance: auto;
+    background-image: none;
+  }
 }

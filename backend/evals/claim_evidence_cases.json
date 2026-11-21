@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "held_out": [
+    {
+      "id": "backlog_growth_only",
+      "claim": "Backlog will convert faster this year.",
+      "filing": "<p>Backlog rose 30 percent this quarter.</p>",
+      "evidence": [],
+      "assessment": "insufficient evidence"
+    },
+    {
+      "id": "delivery_delay",
+      "claim": "Backlog will convert faster this year.",
+      "filing": "<h2>Orders and delivery</h2><p>The order book increased.</p><p>These shipments were deferred into next year.</p>",
+      "evidence": [
+        {
+          "contains": "deferred into next year",
+          "direction": "challenges",
+          "source_type": "filing"
+        }
+      ],
+      "assessment": "challenges"
+    },
+    {
+      "id": "split_context",
+      "claim": "Liquidity will fund expansion without new debt.",
+      "filing": "<h2>Liquidity</h2><p>Expansion requires $200 million.</p><p>It will be funded entirely from existing cash.</p>",
+      "evidence": [
+        {
+          "contains": "funded entirely",
+          "direction": "supports",
+          "source_type": "filing"
+        }
+      ],
+      "assessment": "supports"
+    },
+    {
+      "id": "negation_qa",
+      "claim": "Backlog will convert faster this year.",
+      "turns": [
+        {
+          "speaker": "Analyst",
+          "role": "analyst",
+          "content": "Will backlog convert faster this year?"
+        },
+        {
+          "speaker": "CEO",
+          "role": "management",
+          "content": "No. Deliveries moved into next year."
+        }
+      ],
+      "evidence": [
+        {
+          "contains": "No.",
+          "speaker": "CEO",
+          "direction": "challenges",
+          "source_type": "call"
+        }
+      ],
+      "assessment": "challenges"
+    },
+    {
+      "id": "period_conflict",
+      "claim": "Margins will expand this year.",
+      "filing": "<p>Margins expanded in 2024.</p><p>We expect margins to contract in 2026.</p>",
+      "evidence": [
+        {
+          "contains": "contract in 2026",
+          "direction": "challenges",
+          "source_type": "filing"
+        }
+      ],
+      "assessment": "challenges"
+    },
+    {
+      "id": "conflicting_sources",
+      "claim": "Margins will expand this year.",
+      "filing": "<p>Year to date margins expanded by 100 basis points.</p>",
+      "turns": [
+        {
+          "speaker": "CFO",
+          "role": "management",
+          "content": "We expect full year margin contraction following higher input costs."
+        }
+      ],
+      "evidence": [
+        {
+          "contains": "expanded",
+          "direction": "supports",
+          "source_type": "filing"
+        },
+        {
+          "contains": "contraction",
+          "direction": "challenges",
+          "source_type": "call"
+        }
+      ],
+      "assessment": "mixed"
+    },
+    {
+      "id": "unrelated",
+      "claim": "Proprietary software will increase recurring revenue.",
+      "filing": "<p>The company leased a warehouse.</p>",
+      "evidence": [],
+      "assessment": "insufficient evidence"
+    }
+  ]
+}

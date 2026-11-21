@@ -74,7 +74,10 @@ test('analysis action uses latest filing and marks stale thesis', () => {
   const analyze = vi.fn();
   render(
     <ThesisComparison
-      detail={{ ...detail, thesis: { id: 3, version: 2, body: 'Edited' } }}
+      detail={{
+        ...detail,
+        thesis: { id: 3, version: 2, body: 'Edited', created_at: '2026-11-20' },
+      }}
       busy={false}
       onAnalyze={analyze}
     />,

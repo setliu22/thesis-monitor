@@ -529,10 +529,110 @@ def refresh_event_results(sessions=SessionLocal, limit=4):
                 row.outcome = result
 
 
-def company_context(event, company, observations, thesis=None):
-    """Exposure clues from filings known by the event date, not a trading signal."""
+def _inflation_index(label):
+    label = label.lower()
+    if "producer" in label:
+        return "ppi"
+    if "cpi" in label or "pce" in label:
+        return "consumer"
+    return None
+
+
+def metric_explanation(category, metric):
+    """Plain-language context for one result metric, without a stock verdict."""
+    label = str(metric.get("label", "")).lower()
+    direction = metric.get("direction")
+    if category == "fed":
+        if direction == "unchanged":
+            return "The Fed held its target rate steady."
+        if direction == "up":
+            return "Higher rates could make new borrowing and refinancing more expensive."
+        return "Lower rates could make new borrowing and refinancing cheaper."
+    if category == "inflation":
+        index = _inflation_index(label)
+        if index == "consumer":
+            return {
+                "up": "Faster inflation could squeeze household budgets and curb discretionary spending.",
+                "down": "Slower inflation could ease pressure on household budgets and support spending.",
+                "unchanged": "Steady inflation could still squeeze budgets if prices outpace incomes.",
+            }.get(direction, "Consumer prices help explain how much households can afford and what they may buy.")
+        if index == "ppi":
+            return {
+                "up": "Faster growth in selling prices could help margins if costs rise more slowly.",
+                "down": "Slower growth in selling prices could squeeze margins if costs keep rising.",
+                "unchanged": "Steady selling-price growth could still squeeze margins if costs accelerate.",
+            }.get(direction, "Final-demand PPI tracks selling prices producers receive. Margins depend on how those prices move relative to costs.")
+        return "Inflation can affect purchasing power and business costs."
+    if "gdp" in label:
+        return {
+            "up": "Stronger economic growth could support customer demand.",
+            "down": "Slower economic growth could soften customer demand.",
+        }.get(direction, "Economic growth held its pace.")
+    if "payroll" in label:
+        return {
+            "up": "Stronger hiring could support consumer spending.",
+            "down": "Slower hiring could weigh on consumer spending.",
+        }.get(direction, "Payroll gains held their pace.")
+    if "unemployment" in label:
+        return {
+            "up": "Higher unemployment could weigh on consumer spending.",
+            "down": "Lower unemployment could support spending and increase wage pressure.",
+        }.get(direction, "Unemployment held steady.")
+    if "opening" in label:
+        return {
+            "up": "More job openings could increase competition for workers.",
+            "down": "Fewer job openings could ease competition for workers.",
+        }.get(direction, "Job openings held steady.")
+    return ""
+
+
+def _result_summary(outcome):
+    metrics = outcome.get("metrics", [])
+    if not metrics:
+        return "The reported result is available."
+    words = {"up": "increased", "down": "decreased", "unchanged": "was unchanged"}
+    descriptions = []
+    for item in metrics:
+        label = item.get("label", "The metric")
+        verb = words.get(item.get("direction"), "changed")
+        unit = item.get("unit", "")
+        suffix = "%" if unit == "%" else f" {unit}" if unit else ""
+        current = _number_text(item.get("value", ""), unit)
+        previous = _number_text(item.get("previous", ""), unit)
+        if item.get("direction") == "unchanged":
+            descriptions.append(f"{label} {verb} at {current}{suffix}")
+        else:
+            descriptions.append(
+                f"{label} {verb} from {previous}{suffix} to {current}{suffix}"
+            )
+    return "; ".join(descriptions) + "."
+
+
+def _number_text(value, unit="", percentage_places=2):
+    try:
+        number = Decimal(str(value))
+        if unit == "%":
+            quantum = Decimal(1).scaleb(-percentage_places)
+            number = number.quantize(quantum)
+        elif unit == "jobs":
+            number = number.quantize(Decimal("1"))
+        return format(number.normalize(), ",f")
+    except (InvalidOperation, ValueError, TypeError):
+        return str(value)
+
+
+def _dollars(value):
+    for scale, suffix in ((Decimal('1000000000'), 'B'), (Decimal('1000000'), 'M'), (Decimal('1000'), 'K')):
+        if abs(value) >= scale:
+            return f"${value / scale:.2f}{suffix}"
+    return f"${value:,.0f}"
+
+
+def company_context(event, company, observations, thesis=None, outcome=None):
+    """Relate a reported macro result to one selected company using dated SEC facts."""
     if event.category not in ("fed", "inflation", "gdp", "employment"):
         return None
+    outcome = outcome or {}
     known = []
     for row in observations:
         sources = row.payload.get("sources", [])
@@ -556,8 +656,19 @@ def company_context(event, company, observations, thesis=None):
             latest[row.metric] = row
         if row.metric == "operating_cash_flow" and row.kind == "annual":
             latest[row.metric] = row
+        if row.metric in ("revenue_growth", "operating_margin") and row.kind in (
+            "quarter",
+            "annual",
+        ):
+            latest[row.metric] = row
     facts = []
-    for name in ("debt", "cash", "operating_cash_flow"):
+    for name in (
+        "debt",
+        "cash",
+        "operating_cash_flow",
+        "revenue_growth",
+        "operating_margin",
+    ):
         row = latest.get(name)
         if row:
             links = []
@@ -576,30 +687,79 @@ def company_context(event, company, observations, thesis=None):
                     "source_urls": list(dict.fromkeys(links)),
                 }
             )
-    if event.category in ("fed", "inflation"):
-        debt, cash = latest.get("debt"), latest.get("cash")
-        if (
-            debt
-            and cash
-            and debt.period_end == cash.period_end
-            and debt.value > cash.value
-        ):
-            note = "Reported long-term debt exceeds cash at the same reporting date. Borrowing and refinancing costs are worth watching; fixed/floating rates and maturities are not established by these totals."
-        elif (
-            latest.get("operating_cash_flow")
-            and latest["operating_cash_flow"].value < 0
-        ):
-            note = "The latest annual operating cash flow available by this date was negative. External funding needs and borrowing terms are worth watching."
+
+    metrics = outcome.get("metrics") or []
+    direction = metrics[0].get("direction") if metrics else None
+    debt, cash = latest.get("debt"), latest.get("cash")
+    headline = "Company exposure is not established."
+    note = ""
+    if event.category == "fed":
+        headline = {
+            "up": "Higher borrowing costs could pressure cash flow.",
+            "down": "Lower rates could ease future borrowing costs.",
+            "unchanged": "The Fed held its target rate steady.",
+        }.get(direction, "The rate change is not available.")
+        if debt and cash and debt.period_end == cash.period_end:
+            amounts = f"{company.ticker} reported {_dollars(debt.value)} in long-term debt and {_dollars(cash.value)} in cash as of {debt.period_end}."
+            if debt.value > cash.value:
+                mechanism = {
+                    "up": "With debt above cash, more expensive refinancing could reduce cash available for operations and investment.",
+                    "down": "With debt above cash, cheaper refinancing could leave more cash available as debt comes due.",
+                    "unchanged": "With debt above cash, refinancing costs still matter, but this decision does not change the policy-rate target.",
+                }.get(direction, "Debt exceeds cash, so refinancing costs matter.")
+            else:
+                mechanism = {
+                    "up": "Cash covers the reported long-term debt balance, which may reduce reliance on borrowing. Higher rates can also increase returns on cash as deposits and investments reprice.",
+                    "down": "Cash covers the reported long-term debt balance, which may reduce the benefit from cheaper borrowing. Lower rates can also reduce returns on cash as investments reprice.",
+                    "unchanged": "Cash covers the reported long-term debt balance. This decision adds no new policy-rate change to borrowing costs or cash returns.",
+                }.get(direction, "Cash covers the reported long-term debt balance.")
+            relation = f"{amounts} {mechanism}"
         else:
-            note = "Check borrowing costs, debt maturities and cash generation. Available totals do not establish this company’s sensitivity to rates."
+            relation = f"For {company.ticker}, rate changes can affect new borrowing, refinancing and the value investors place on future profits."
+        note = "The timing depends on debt maturities, fixed versus variable rates, and how cash is invested."
+    elif event.category == "inflation":
+        index = _inflation_index(metrics[0].get("label", "")) if metrics else None
+        if index == "consumer":
+            headline = {
+                "up": "Faster consumer inflation can stretch household budgets.",
+                "down": "Slower consumer inflation can ease pressure on household budgets.",
+                "unchanged": "Consumer inflation held its previous pace.",
+            }.get(direction, "Consumer prices can shape household spending.")
+            relation = (
+                f"For {company.ticker}, the connection depends on how much its customers "
+                "rely on household spending."
+            )
+        elif index == "ppi":
+            headline = {
+                "up": "Producer selling prices rose faster or fell more slowly.",
+                "down": "Producer selling prices rose more slowly or fell faster.",
+                "unchanged": "Producer selling prices changed at the same pace.",
+            }.get(direction, "Producer prices give context for selling prices.")
+            relation = (
+                f"For {company.ticker}, margins depend on how its own selling prices move "
+                "relative to labor and material costs."
+            )
+        else:
+            headline = "Inflation can affect prices and spending."
+            relation = f"The broad index does not establish {company.ticker}'s exposure."
     else:
-        note = "Changes in economic demand and labor conditions can affect sales, hiring and costs. These totals alone do not establish the size or direction of the company’s exposure."
+        growth = latest.get("revenue_growth")
+        baseline = f"{company.ticker} reported revenue growth of {_number_text(growth.value, '%', 1)}% as of {growth.period_end}. " if growth else f"For {company.ticker}, "
+        if event.category == "gdp":
+            headline = {"up": "Faster economic growth could support customer demand.", "down": "Slower economic growth could weaken customer demand.", "unchanged": "Economic growth held its previous pace."}.get(direction, "Economic growth affects the demand backdrop.")
+            relation = baseline + "Changes in customer spending can affect new orders and sales, especially for businesses tied to the economic cycle."
+            note = "Revenue growth alone does not establish how sensitive the company's customers are to the economy."
+        else:
+            headline = "Hiring and wage pressure can move in different directions."
+            relation = baseline + "Stronger hiring can support customer spending but increase competition for employees. Weaker hiring can ease wage pressure while weakening demand."
+            note = "Payrolls, unemployment and job openings measure different things; their effects depend on the company's customers and staffing needs."
+
     link = None
     if thesis:
         terms = (
-            ("debt", "borrow", "financ")
+            ("debt", "borrow", "financ", "rate")
             if event.category in ("fed", "inflation")
-            else ("demand", "growth", "customer", "contract")
+            else ("demand", "growth", "customer", "contract", "hiring")
         )
         link = next(
             (
@@ -611,6 +771,8 @@ def company_context(event, company, observations, thesis=None):
         )
     return {
         "ticker": company.ticker,
+        "headline": headline,
+        "relation": relation,
         "note": note,
         "facts": facts,
         "basis": "SEC sources filed on or before the event date.",

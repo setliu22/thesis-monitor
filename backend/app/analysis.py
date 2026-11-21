@@ -333,6 +333,14 @@ def analyze_filing(
 
 
 def run_analysis_job(sessions, job, owner):
+    if job.payload.get("summary_analysis_id"):
+        from .review_summary import run_summary
+
+        return run_summary(sessions, job, owner)
+    if job.payload.get("review_id"):
+        from .review_pipeline import run_review
+
+        return run_review(sessions, job, owner)
     config = analysis_config()
     if not config.api_key:
         raise ValueError("Filing analysis needs GROQ_API_KEY")
@@ -348,6 +356,9 @@ def run_analysis_job(sessions, job, owner):
             or thesis.company_id != company.id
         ):
             raise ValueError("Analysis references invalid versions")
+        from .reviews import require_recent_earnings
+
+        require_recent_earnings(s, filing)
         path = filing_path(company.cik, filing.accession, filing.document)
         body = thesis.body
         filing_id = filing.id

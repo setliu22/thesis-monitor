@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from .config import settings
 from .db import SessionLocal, sec_gate
-from .models import Company
+from .models import Company, Filing
 from .earnings import update_calendar, refresh_due, latest_loaded_report
 from .sec import SecClient, valid_identity
 from .jobs import enqueue_refresh, claim_job, heartbeat, finish_job, fail_job
@@ -26,8 +26,13 @@ def schedule(sessions=SessionLocal):
     from .events import refresh_events, queue_reminders
     from .event_results import refresh_event_results
 
+    from .reviews import reconcile_reviews
+    from .discovery import submissions_only
+
     # Keep independent services progressing when one provider fails.
     for task in (
+        submissions_only,
+        reconcile_reviews,
         update_calendar,
         refresh_events,
         refresh_event_results,
@@ -42,7 +47,23 @@ def schedule(sessions=SessionLocal):
     with sessions.begin() as s:
         for company in s.scalars(select(Company).where(Company.watched.is_(True))):
             filing = latest_loaded_report(s, company.id)
-            if refresh_due(company, datetime.now(timezone.utc), filing):
+            current = datetime.now(timezone.utc)
+            newer_report = s.scalar(
+                select(Filing.id)
+                .where(
+                    Filing.company_id == company.id,
+                    Filing.form.in_(("10-Q", "10-K")),
+                    Filing.report_date > (filing.report_date if filing else ""),
+                )
+                .limit(1)
+            )
+            last_attempt = company.last_attempt or company.last_success
+            catch_up = newer_report and (
+                not last_attempt
+                or (current - datetime.fromisoformat(last_attempt)).total_seconds()
+                >= settings.financial_refresh_hours * 3600
+            )
+            if catch_up or refresh_due(company, current, filing):
                 enqueue_refresh(s, company.id)
 
 
@@ -93,13 +114,13 @@ def process_once(sessions=SessionLocal, client=None, owner=None, kind=None):
             )
         )
     except Exception as exc:
-        from .groq_runtime import Deferred
+        from .groq_runtime import Deferred, InvalidModelResponse, PermanentFailure
 
-        if isinstance(exc, Deferred):
+        if isinstance(exc, Deferred) and exc.kind != "provider":
             from .jobs import defer_job
 
             try:
-                defer_job(sessions, job.id, owner, str(exc), exc.delay)
+                defer_job(sessions, job.id, owner, str(exc), exc.delay, kind=exc.kind)
             except RuntimeError:
                 logger.warning("deferred_job_lease_lost: %s", job.id)
             return True
@@ -108,13 +129,21 @@ def process_once(sessions=SessionLocal, client=None, owner=None, kind=None):
             if isinstance(exc, SQLAlchemyError)
             else str(exc)
         )
+        retry_status = "retry_wait"
+        if isinstance(exc, InvalidModelResponse):
+            retry_status = "invalid_output_wait"
+        elif isinstance(exc, Deferred) and exc.kind == "provider":
+            retry_status = "provider_wait"
         fail_job(
             sessions,
             job.id,
             owner,
             error,
-            min(300, 30 * 2 ** (job.attempts - 1)),
-            settings.max_attempts,
+            exc.delay
+            if isinstance(exc, Deferred)
+            else min(300, 30 * 2 ** (job.attempts - 1)),
+            1 if isinstance(exc, PermanentFailure) else settings.max_attempts,
+            retry_status=retry_status,
         )
         logger.warning(
             json.dumps(
@@ -122,7 +151,7 @@ def process_once(sessions=SessionLocal, client=None, owner=None, kind=None):
                     "event": "job_failed",
                     "job_id": job.id,
                     "company_id": job.company_id,
-                    "error": error[:500],
+                    "error_type": type(exc).__name__,
                 }
             )
         )
@@ -140,15 +169,20 @@ def main():
         while not stop.is_set():
             try:
                 schedule()
-                from .analysis_dispatch import wake_analysis
-
-                wake_analysis()
             except Exception:
                 logger.exception("scheduler_failed")
             stop.wait(60)
 
     scheduler_thread = threading.Thread(target=scheduler, daemon=True)
     scheduler_thread.start()
+    from .analysis_dispatch import wake_analysis
+
+    def dispatch_analyses():
+        while not stop.is_set():
+            wake_analysis()
+            stop.wait(5)
+
+    threading.Thread(target=dispatch_analyses, daemon=True).start()
     while True:
         try:
             # Groq reviews run in their own dispatcher; financial refreshes

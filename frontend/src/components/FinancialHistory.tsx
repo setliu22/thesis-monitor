@@ -51,7 +51,7 @@ export default function FinancialHistory({
                       <button
                         className={'financial-value ' + (o.value === null ? 'unavailable' : '')}
                         onClick={() => setInspected(o)}
-                        title={o.unavailable_reason || 'View values and source filings'}
+                        title={o.unavailable_reason || 'View values'}
                       >
                         {format(o.value, o.unit)}
                         {o.derivation === 'ytd_difference' && (
@@ -73,12 +73,8 @@ export default function FinancialHistory({
   return (
     <section className="panel" id="financial-history">
       <div className="section-heading">
-        <div>
-          <span className="eyebrow">FINANCIAL STATEMENTS</span>
-          <h2>Financial history</h2>
-        </div>
+        <h2>Financial history</h2>
         <label className="history-count">
-          Show
           <select
             aria-label="Number of reporting periods"
             value={count}
@@ -90,21 +86,12 @@ export default function FinancialHistory({
           </select>
         </label>
       </div>
-      <p className="muted">
-        {kind === 'quarter' ? 'Standalone quarters' : 'Full fiscal years'}. Values in USD; EPS in
-        USD per share. Select a value to inspect its sources.
-      </p>
       {statementGroups.map((group) => {
         const isBalance = group.title === 'Balance sheet';
         const ends = isBalance ? balancePeriods : periods;
         return (
           <section className="statement-history" key={group.title} aria-label={group.title}>
             <h3 className="balance-heading">{group.title}</h3>
-            {isBalance && (
-              <p className="muted">
-                Balances at each reporting date, independent of the quarterly or annual setting.
-              </p>
-            )}
             {ends.length ? (
               renderTable(
                 group.metrics,
@@ -120,11 +107,7 @@ export default function FinancialHistory({
           </section>
         );
       })}
-      <p className="fine-print">
-        * Calculated from compatible year-to-date figures. Free cash flow is operating cash flow
-        minus capital expenditures. A dash means the metric is unavailable. Scroll horizontally for
-        earlier periods.
-      </p>
+      <p className="fine-print">* Quarter calculated from year-to-date figures.</p>
       {inspected && (
         <div className="history-evidence" role="region" aria-label="Selected financial sources">
           <div className="section-heading">
@@ -163,11 +146,6 @@ export default function FinancialHistory({
               <strong>
                 {format(s.value, inspected.metric === 'diluted_eps' ? 'USD/share' : 'USD')}
               </strong>
-              {s.url && (
-                <a href={s.url} target="_blank" rel="noreferrer" className="text-button">
-                  Filing <ArrowUpRight size={14} />
-                </a>
-              )}
             </div>
           ))}
         </div>

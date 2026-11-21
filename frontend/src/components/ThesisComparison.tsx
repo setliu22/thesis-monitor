@@ -1,3 +1,5 @@
+import AnalysisQueue from './AnalysisQueue';
+import ClaimReview from './ClaimReview';
 import { date, format, labels } from '../api';
 import type { Detail, Observation } from '../types';
 
@@ -96,19 +98,34 @@ export default function ThesisComparison({
   detail,
   busy,
   onAnalyze,
+  onSummaryQueued,
 }: {
   detail: Detail;
   busy: boolean;
-  onAnalyze: (filingId: number) => void;
+  onAnalyze: (filingId: number, rerun?: boolean, retryConnection?: boolean) => void;
+  onSummaryQueued?: () => Promise<void>;
 }) {
+  if (detail.review || detail.analyses.some((a) => a.result.claim_assessments))
+    return (
+      <ClaimReview
+        detail={detail}
+        busy={busy}
+        onAnalyze={onAnalyze}
+        onSummaryQueued={onSummaryQueued}
+      />
+    );
   const analysis = detail.analyses[0];
   const job = detail.jobs?.find(
     (j) => j.kind === 'analysis' && ['queued', 'running'].includes(j.status),
   );
   const progress = job?.payload?.progress;
-  const latest = detail.filings.find((f) => ['10-K', '10-Q', '10-K/A', '10-Q/A'].includes(f.form));
+  const latest = detail.filings
+    .filter((f) => f.form === '10-K' || f.form === '10-Q')
+    .sort((a, b) =>
+      (b.report_date || b.filed).localeCompare(a.report_date || a.filed) ||
+      b.filed.localeCompare(a.filed) || b.accession.localeCompare(a.accession),
+    )[0];
   const filing = detail.filings.find((f) => f.id === analysis?.filing_id);
-  const sourceUrl = filing?.url || analysis?.result.source_url;
   const stale = Boolean(analysis && detail.thesis && analysis.thesis_id !== detail.thesis.id);
   const changes = analysis ? financialChanges(detail, analysis.filing_id) : [];
   const narrative =
@@ -138,17 +155,7 @@ export default function ThesisComparison({
                       <p className="fine-print" key={i}>
                         <code>{source.tag}</code> · {format(source.value, period.value.unit)} ·{' '}
                         {source.start ? `${date(source.start)} – ` : ''}
-                        {date(source.end)}{' '}
-                        {source.url && (
-                          <a
-                            className="text-button"
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Source filing ↗
-                          </a>
-                        )}
+                        {date(source.end)}
                       </p>
                     ))}
                   </div>
@@ -178,6 +185,7 @@ export default function ThesisComparison({
           </button>
         )}
       </div>
+      <AnalysisQueue />
       {job && (
         <div className="analysis-progress" role="status" aria-live="polite">
           <p>
@@ -228,11 +236,7 @@ export default function ThesisComparison({
                       ? o.quote.slice(0, 240).replace(/\s+\S*$/, '') + '…'
                       : o.quote}
                   </blockquote>
-                  {sourceUrl && (
-                    <a className="text-button" href={sourceUrl} target="_blank" rel="noreferrer">
-                      Source filing ↗
-                    </a>
-                  )}
+
                   <details>
                     <summary>Thesis link and full passage</summary>
                     <p>Your thesis: “{o.thesis_quote}”</p>
@@ -294,15 +298,6 @@ export default function ThesisComparison({
                     <p className="fine-print">
                       Questions and management statements are attributed to their speakers.
                     </p>
-                    {analysis.result.transcript.source_url && (
-                      <a
-                        href={analysis.result.transcript.source_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Transcript provider ↗
-                      </a>
-                    )}
                   </details>
                 </>
               ) : (
@@ -346,11 +341,6 @@ export default function ThesisComparison({
                   <p>{o.summary}</p>
                 )}
                 <blockquote>{o.quote}</blockquote>
-                {sourceUrl && (
-                  <a className="text-button" href={sourceUrl} target="_blank" rel="noreferrer">
-                    Source filing ↗
-                  </a>
-                )}
               </article>
             ))}
             {analysis.result.rejected_count > 0 && (
@@ -366,20 +356,6 @@ export default function ThesisComparison({
                 <article key={a.id}>
                   <h3>Comparison #{a.id} · Unverified</h3>
                   <p>{a.result.scope}</p>
-                  {(a.result.source_url ||
-                    detail.filings.find((f) => f.id === a.filing_id)?.url) && (
-                    <a
-                      className="text-button"
-                      href={
-                        a.result.source_url ||
-                        detail.filings.find((f) => f.id === a.filing_id)!.url!
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Source filing ↗
-                    </a>
-                  )}
                   {a.result.observations.map((o, i) => (
                     <div key={i}>
                       <p>{o.summary}</p>

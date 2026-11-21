@@ -255,3 +255,30 @@ def test_provider_cached_prompt_tokens_do_not_consume_daily_allowance(sessions):
         {"model": "test", "messages": [], "max_completion_tokens": 100}, lambda p: None
     )
     assert runner.tokens == 200
+
+
+def test_dns_failure_releases_request_allowance_and_retains_retry_reason(sessions):
+    import socket
+
+    calls = []
+
+    def send(request):
+        calls.append(request)
+        if len(calls) == 1:
+            try:
+                raise socket.gaierror("Temporary failure in name resolution")
+            except socket.gaierror as exc:
+                raise httpx.ConnectError("DNS error") from exc
+        return httpx.Response(200, json=response())
+
+    limits = Limits(rpm=1)
+    body = {"model": "test", "messages": [], "max_completion_tokens": 100}
+    transport = httpx.MockTransport(send)
+    runner = GroqRunner(sessions, "key", limits=limits, transport=transport)
+    with pytest.raises(Deferred, match="could not resolve") as deferred:
+        runner(body, lambda p: None)
+    assert deferred.value.kind == "groq_provider"
+    # An attempt that never connected cannot exhaust the request budget.
+    resumed = GroqRunner(sessions, "key", limits=limits, transport=transport)
+    assert resumed(body, lambda p: None) == response()
+    assert len(calls) == 2

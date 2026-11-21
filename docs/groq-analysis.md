@@ -1,44 +1,86 @@
-# Groq filing analysis
+# Groq thesis reviews
 
-The deployed app uses Groq's chat completions endpoint with strict structured
+This page describes the implementation in the current local branch. It has not
+been deployed; the hosted app remains on its previous version until the review
+migration and application are released.
+
+The app uses Groq's chat completions endpoint with strict structured
 outputs. The default model is `openai/gpt-oss-20b`, configurable through
 `GROQ_MODEL`; choosing another model requires structured-output support.
 The model name identifies an open-weight model served by Groq, not an OpenAI
 API request. No automatic provider fallback is performed.
 
-Set `GROQ_API_KEY` in the ignored local `.env`, the Render web service environment,
-and GitHub Actions repository secrets. `GROQ_MODEL` is an optional GitHub repository
-variable; its default matches the backend. Restart local API/worker processes
-after changing local environment files. Render must redeploy after secret edits.
+Set `GROQ_API_KEY` in the ignored local `.env`. Restart the local app after changing it.
 The API reports whether a key is present, not whether the provider has quota.
 
-## Use
+## Local model evaluation
 
-Save your own thesis under Thesis & rules. Under Filings, select Analyze on a
-10-K or 10-Q. The API records a durable analysis job containing the selected
-filing and thesis versions. The hosted hourly runner processes it even while
-the website sleeps. Results appear in Filing analysis. This remains explicitly
-requested analysis; saving a thesis alone does not schedule a comparison, and
-this change does not add automatic thesis-change email alerts.
+`scripts/evaluate_local_review.py` compares keyword retrieval with keyword plus
+MiniLM retrieval, then runs the same evidence and citation validators against
+a local Qwen GGUF through `llama-server`. It reports the expected and actual
+verdict, labeled passage and citation matches, request count, tokens, and time
+for each case. The evaluation uses local model files and does not change saved
+reviews.
 
-Only selected filing excerpts (up to 8,000 characters) and the first 4,000 thesis
-characters are supplied to Groq. The output budget is 4,096 tokens, with low reasoning effort for GPT-OSS models and at most six concise observations. Character
-limits reduce usage but do not guarantee compliance with every account's token
-quota. The result's scope states these limits; it is not a full-filing review.
+Create a separate virtual environment with the backend requirements and
+`sentence-transformers`. With `llama-server` on your path, run:
 
-The app validates output with Pydantic and discards observations whose supporting
-quote is not present within one supplied excerpt. Quote presence establishes
-provenance, not the correctness of the model's interpretation. Truncated, refused,
-malformed and non-200 responses fail the job without saving partial observations.
-Existing bounded job retries apply; provider errors are logged without provider
-response bodies or credentials. Stored results identify the provider, requested
-model, thesis version, filing accession, excerpt digest and supplied excerpts.
+```sh
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python scripts/evaluate_local_review.py \
+  --model /path/to/qwen.gguf --embedding-model /path/to/minilm/snapshot
+```
+
+To evaluate additional reports, use `--cases` with a labeled JSON fixture.
+A case can use `filing_path` relative to the fixture for a saved HTML filing.
+`--retrieve-only` compares retrieval without starting Qwen.
+
+## Current workflow
+
+Save a thesis for a watched company. The first import is treated as a baseline;
+the app catches up only the latest eligible filing. Afterward, each newly
+discovered original 10-Q or 10-K is registered for review when a thesis and
+Groq key are available. The same service handles deliberate historical reviews
+and reruns. Editing a thesis does not launch a historical sweep. Amendments are
+manual; 8-K filings are not automatic triggers.
+
+Review identity captures company, filing, thesis version, model and analysis
+version. Validated batches and immutable filing/call snapshots are reused after
+restarts. Filing evidence is assessed first and published without waiting for a
+call. A later matching transcript adds a second result without re-reading the
+filing. Fiscal quarter must be verified from the filing; call checks stop after
+14 days and retry every 6 hours by default. `TRANSCRIPT_FOLLOWUP_DAYS` and
+`TRANSCRIPT_RETRY_HOURS` can change those defaults.
+
+Stage A makes a decision for each selected filing passage or transcript block,
+linking it to exact saved claim IDs and a direction. Stage B assesses each claim
+as supports, challenges, mixed or insufficient evidence. Code validates claim
+and evidence IDs, citations, speaker/source scope and required evidence on both
+sides of a mixed assessment. The page shows selective filing coverage and call
+coverage separately. Citations open saved source text on demand; source contents
+are excluded from polling responses and logs.
+
+Discovery runs during SEC refresh and through a submissions-only daily fallback.
+The fallback is bounded and round-robin; hosted scheduled work can wait until
+its next runner invocation. Groq quota waits retain the job without consuming
+provider-error retries. Narrative reviews stay in the app; no new narrative
+email alerts are enabled. The default model is `openai/gpt-oss-20b`, served by
+Groq; the prefix does not mean requests go to OpenAI.
+
+Results are model interpretations of cited disclosures. A citation establishes
+where a passage came from, not whether the source is true or the interpretation
+is correct. Filing retrieval is selective, not a claim that every filing line
+was read. See the implementation report for measured checks and limits.
 
 The unused OpenAI adapter and configuration fields have been removed. All model
 requests use Groq. The `openai/` model-name prefix and `/openai/v1/` segment in
 Groq’s API URL are Groq identifiers, not calls to OpenAI.
 
-## Verification
+## Earlier engine evaluations
+
+The dated version notes below record earlier passage-matching implementations;
+they are historical, not measurements of the current claim-review stages.
+
+### Prior Groq filing analysis
 
 The CACI failure investigation on November 16, 2026 reproduced completion-token
 exhaustion on a full filing request: finish reason `length`, 2,000 completion
@@ -157,3 +199,19 @@ three labeled anchors recovered. Thesis version 1 and its text were unchanged.
 The prompt identifier is `v4-passage-review` to fit the existing VARCHAR(20).
 A regression test now enforces that field limit. Database job errors are sanitized
 rather than exposing SQL parameters in the UI.
+
+### Local hybrid retrieval
+
+New filing and earnings call selections combine keyword ranking and local
+MiniLM similarity using reciprocal rank fusion. Source passage vectors are cached
+separately from thesis queries under `work/embedding-cache/`, so thesis edits do
+not require re-encoding unchanged documents. Saved selections and reviews remain
+reusable. Retrieval preserves the original passage IDs and source metadata.
+
+The worker defaults to the evaluation Python environment at
+`work/local-model-eval-venv/bin/python` and the locally cached
+`sentence-transformers/all-MiniLM-L6-v2` model. Set `THESIS_EMBEDDING_PYTHON`
+to a Python executable with `sentence-transformers` installed, or
+`THESIS_EMBEDDING_MODEL` to a local model snapshot, to override those defaults.
+The encoder runs offline. If it is unavailable, the worker logs the fallback and
+records keyword-only retrieval in coverage metadata.

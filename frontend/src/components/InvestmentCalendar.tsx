@@ -8,7 +8,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  ArrowUpRight,
   Bell,
   CalendarDays,
   X,
@@ -97,17 +96,34 @@ const dateLabel = (d: string) =>
   }).format(new Date(d + 'T00:00:00Z'));
 export default function InvestmentCalendar({
   watchlistVersion = '',
-}: { watchlistVersion?: string } = {}) {
+  companies = [],
+  selectedCompanyId = null,
+  onContextCompanyChange,
+}: {
+  watchlistVersion?: string;
+  companies?: { id: number; ticker: string; name: string }[];
+  selectedCompanyId?: number | null;
+  onContextCompanyChange?: (id: number | null) => void;
+} = {}) {
   const [month, setMonth] = useState(today().slice(0, 7)),
     [selected, setSelected] = useState(today()),
     [data, setData] = useState<Response | null>(null),
     [filters, setFilters] = useState<Category[]>(Object.keys(categories) as Category[]),
     [invested, setInvested] = useState(true),
-    [error, setError] = useState(''),
+    [calendarError, setCalendarError] = useState(''),
+    [reminderError, setReminderError] = useState(''),
     [loading, setLoading] = useState(true),
     [prefs, setPrefs] = useState<Prefs | null>(null),
     [edit, setEdit] = useState(false),
     [saving, setSaving] = useState(false);
+  const [localCompanyId, setLocalCompanyId] = useState<number | null>(selectedCompanyId);
+  useEffect(() => setLocalCompanyId(selectedCompanyId), [selectedCompanyId]);
+  useEffect(() => {
+    if (localCompanyId !== null && !companies.some((c) => c.id === localCompanyId))
+      setLocalCompanyId(selectedCompanyId);
+  }, [companies, localCompanyId, selectedCompanyId]);
+  const contextCompanyId = onContextCompanyChange ? selectedCompanyId : localCompanyId;
+  const setContextCompanyId = onContextCompanyChange ?? setLocalCompanyId;
   const [year, m] = month.split('-').map(Number);
   const days = useMemo(() => {
     const first = new Date(Date.UTC(year, m - 1, 1));
@@ -118,10 +134,12 @@ export default function InvestmentCalendar({
       return iso(d);
     });
   }, [year, m]);
-  const load = useCallback(
-    () => api<Response>(`/calendar?start=${days[0]}&end=${days[41]}&invested_only=${invested}`),
-    [days, invested],
-  );
+  const load = useCallback(() => {
+    const context = contextCompanyId === null ? '' : `&context_company_id=${contextCompanyId}`;
+    return api<Response>(
+      `/calendar?start=${days[0]}&end=${days[41]}&invested_only=${invested}${context}`,
+    );
+  }, [contextCompanyId, days, invested]);
   useEffect(() => {
     let live = true;
     setLoading(true);
@@ -129,11 +147,11 @@ export default function InvestmentCalendar({
       .then((d) => {
         if (live) {
           setData(d);
-          setError('');
+          setCalendarError('');
         }
       })
       .catch((e) => {
-        if (live) setError(e.message);
+        if (live) setCalendarError(e.message);
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -142,9 +160,14 @@ export default function InvestmentCalendar({
       if (!document.hidden)
         load()
           .then((d) => {
-            if (live) setData(d);
+            if (live) {
+              setData(d);
+              setCalendarError('');
+            }
           })
-          .catch(() => {});
+          .catch((e) => {
+            if (live) setCalendarError(e.message);
+          });
     }, 60000);
     return () => {
       live = false;
@@ -154,7 +177,7 @@ export default function InvestmentCalendar({
   useEffect(() => {
     api<Prefs>('/reminder-settings')
       .then(setPrefs)
-      .catch((e) => setError(e.message));
+      .catch((e) => setReminderError(e.message));
   }, []);
   const events = (data?.events ?? []).filter((e) => filters.includes(e.category));
   const dayEvents = events.filter((e) => e.day === selected);
@@ -178,6 +201,7 @@ export default function InvestmentCalendar({
   async function save() {
     if (!prefs) return;
     setSaving(true);
+    setReminderError('');
     try {
       setPrefs(
         await api<Prefs>('/reminder-settings', 'PUT', {
@@ -189,7 +213,7 @@ export default function InvestmentCalendar({
       );
       setEdit(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save reminders');
+      setReminderError(e instanceof Error ? e.message : 'Could not save reminders');
     } finally {
       setSaving(false);
     }
@@ -198,17 +222,15 @@ export default function InvestmentCalendar({
     <section className="investment-calendar">
       <div className="calendar-intro">
         <div>
-          <span className="eyebrow">YOUR INVESTMENT CALENDAR</span>
           <h1>Investment calendar</h1>
-          <p>Earnings dates and market events.</p>
         </div>
         <button className="button secondary" onClick={() => setEdit(true)}>
           <Bell size={16} /> Reminders
         </button>
       </div>
-      {error && (
+      {(calendarError || reminderError) && (
         <p role="alert" className="notice error">
-          {error}
+          {calendarError || reminderError}
         </p>
       )}
       <div className="calendar-workspace">
@@ -251,6 +273,25 @@ export default function InvestmentCalendar({
                 <ChevronRight size={18} />
               </button>
             </div>
+          </div>
+          <div className="calendar-context-control">
+            <label>
+              Stock context
+              <select
+                aria-label="Stock context"
+                value={contextCompanyId ?? ''}
+                onChange={(e) =>
+                  setContextCompanyId(e.target.value ? Number(e.target.value) : null)
+                }
+              >
+                <option value="">No stock selected</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.ticker} · {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="calendar-legend">
             {Object.entries(categories).map(([key, label]) => (
@@ -327,9 +368,7 @@ export default function InvestmentCalendar({
             })}
           </div>
           <div className="calendar-foot">
-            <span>
-              {loading ? 'Loading scheduled events…' : `${events.length} events in this view`}
-            </span>
+            {loading && <span role="status">Loading events…</span>}
             <label>
               <input
                 type="checkbox"
@@ -340,56 +379,60 @@ export default function InvestmentCalendar({
             </label>
           </div>
         </div>
-        <aside className="calendar-agenda" id="day-agenda">
-          <div className="agenda-date">
-            <CalendarDays size={18} />
-            <span>{dateLabel(selected)}</span>
-          </div>
-          {!dayEvents.length ? (
-            <div className="agenda-empty">
-              <CalendarDays size={26} />
-              <p>No scheduled events</p>
-              <span>Select another day or browse upcoming events.</span>
+        <div className="calendar-side">
+          <aside className="calendar-agenda" id="day-agenda">
+            <div className="agenda-date">
+              <CalendarDays size={18} />
+              <span>{dateLabel(selected)}</span>
             </div>
-          ) : (
-            dayEvents.map((e) => (
-              <article key={e.id} className={'agenda-event ' + e.category}>
-                <span className="event-category">
-                  <EventMarker category={e.category} />
-                  {categories[e.category]}
-                </span>
-                <h3>{e.title}</h3>
-                <p>
-                  {e.starts_at
-                    ? new Intl.DateTimeFormat('en-US', {
+            {!dayEvents.length ? (
+              <div className="agenda-empty">
+                <CalendarDays size={26} />
+                <p>No scheduled events</p>
+              </div>
+            ) : (
+              dayEvents.map((e) => (
+                <article key={e.id} className={'agenda-event ' + e.category}>
+                  <span className="event-category">
+                    <EventMarker category={e.category} />
+                    {categories[e.category]}
+                  </span>
+                  <h3>{e.title}</h3>
+                  {e.starts_at && (
+                    <p>
+                      {new Intl.DateTimeFormat('en-US', {
                         timeZone: 'America/New_York',
                         hour: 'numeric',
                         minute: '2-digit',
-                      }).format(new Date(e.starts_at)) + ' ET'
-                    : 'Date only · Eastern Time'}
-                </p>
-                <span className="badge neutral">
-                  {e.outcome?.status === 'reported'
-                    ? 'Result available'
-                    : e.status === 'estimated'
-                      ? 'Estimated date'
-                      : e.status === 'statutory'
-                        ? 'Statutory date'
-                        : 'Published schedule'}
-                </span>
-                {e.day <= today() && (
-                  <EventOutcome outcome={e.outcome} companies={e.company_context} />
-                )}
-                <a className="text-button" href={e.source_url} target="_blank" rel="noreferrer">
-                  View source <ArrowUpRight size={13} />
-                </a>
-              </article>
-            ))
-          )}
-          <div className="agenda-upcoming">
-            <span className="eyebrow">COMING UP</span>
-            {upcoming.length ? (
-              upcoming.map((e) => (
+                      }).format(new Date(e.starts_at))}{' '}
+                      ET
+                    </p>
+                  )}
+                  {e.status === 'estimated' && (
+                    <span className="badge neutral">Estimated date</span>
+                  )}
+                  {e.day <= today() && (
+                    <EventOutcome
+                      outcome={e.outcome}
+                      companies={
+                        contextCompanyId === null
+                          ? []
+                          : e.company_context?.filter(
+                              (c) =>
+                                c.ticker ===
+                                companies.find((stock) => stock.id === contextCompanyId)?.ticker,
+                            )
+                      }
+                    />
+                  )}
+                </article>
+              ))
+            )}
+          </aside>
+          {upcoming.length > 0 && (
+            <section className="agenda-upcoming agenda-upcoming-card">
+              <span className="eyebrow">COMING UP</span>
+              {upcoming.map((e) => (
                 <button key={e.id} onClick={() => setSelected(e.day)}>
                   <span className="upcoming-day">
                     {new Intl.DateTimeFormat('en-US', {
@@ -401,42 +444,11 @@ export default function InvestmentCalendar({
                   <EventMarker category={e.category} />
                   <span>{e.title}</span>
                 </button>
-              ))
-            ) : (
-              <p className="muted">No upcoming events in this view.</p>
-            )}
-          </div>
-        </aside>
+              ))}
+            </section>
+          )}
+        </div>
       </div>
-      {!!data?.missing_earnings.length && (
-        <p className="calendar-data-note">
-          Earnings dates not yet available: {data.missing_earnings.map((c) => c.ticker).join(', ')}.
-          No dates have been guessed.
-        </p>
-      )}
-      <details className="calendar-source-status">
-        <summary>
-          Sources & coverage {data?.sources.some((s) => s.error) ? '· Some feeds unavailable' : ''}
-        </summary>
-        {data?.sources.map((s) => (
-          <p key={s.provider}>
-            <strong>{s.source_label || s.provider.replace('events-', '').toUpperCase()}</strong> —{' '}
-            {s.error || 'Schedule loaded'}
-            {s.checked_at
-              ? ` · Checked ${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' }).format(new Date(s.checked_at))}`
-              : ''}
-          </p>
-        ))}
-        <p>
-          Published dates can change. This calendar does not predict event outcomes or market moves.
-        </p>
-      </details>
-      <p className="fine-print">
-        {prefs?.enabled
-          ? `Email reminders: ${prefs.days.join(' and ')} days before, at ${prefs.hour}:00 Eastern.`
-          : 'Email reminders are off.'}{' '}
-        {!prefs?.email_configured ? 'Email provider setup is incomplete.' : ''}
-      </p>
       {edit && prefs && (
         <div className="modal-backdrop">
           <section

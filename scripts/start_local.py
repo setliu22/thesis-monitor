@@ -28,6 +28,30 @@ def healthy(url: str, marker: bytes) -> bool:
         return False
 
 
+def migration_target_is_local(env: dict[str, str]) -> bool:
+    """Ask the project environment which DB Alembic will use, without printing it."""
+    result = subprocess.run(
+        [
+            str(PYTHON),
+            "-c",
+            "from app.config import settings; "
+            "from app.migration_safety import is_local_migration_target; "
+            "url = settings.database_url_unpooled or settings.database_url; "
+            "print('local' if is_local_migration_target(url) else 'remote')",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=15,
+        check=True,
+    )
+    target = result.stdout.strip()
+    if target not in {"local", "remote"}:
+        raise RuntimeError("Could not safely determine the configured migration target.")
+    return target == "local"
+
+
 def running() -> bool:
     with (STATE / "supervisor.lock").open("a") as lock:
         try:
@@ -38,10 +62,10 @@ def running() -> bool:
 
 
 def node_binary() -> str:
-    choices = [shutil.which("node")]
-    choices += [
+    choices = [
         str(p) for p in sorted((ROOT / "work").glob("node-v*/bin/node"), reverse=True)
     ]
+    choices.append(shutil.which("node"))
     for node in choices:
         if node:
             try:
@@ -82,23 +106,30 @@ def supervise() -> None:
                 "Local dependencies are missing. See README local setup."
             )
         with (STATE / "migrations.log").open("a") as log:
-            subprocess.run(
-                [
-                    str(PYTHON),
-                    "-m",
-                    "alembic",
-                    "-c",
-                    "backend/alembic.ini",
-                    "upgrade",
-                    "head",
-                ],
-                cwd=ROOT,
-                env=env,
-                stdout=log,
-                stderr=log,
-                timeout=90,
-                check=True,
-            )
+            if migration_target_is_local(env):
+                subprocess.run(
+                    [
+                        str(PYTHON),
+                        "-m",
+                        "alembic",
+                        "-c",
+                        "backend/alembic.ini",
+                        "upgrade",
+                        "head",
+                    ],
+                    cwd=ROOT,
+                    env=env,
+                    stdout=log,
+                    stderr=log,
+                    timeout=90,
+                    check=True,
+                )
+            else:
+                log.write(
+                    "Skipped automatic migration: the configured database is remote. "
+                    "Apply schema changes through the deployment migration command.\n"
+                )
+                log.flush()
         commands = {
             "api": [
                 str(PYTHON),
@@ -186,7 +217,7 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 return 1
-            print("Stopping local services. Cloud monitoring continues independently.")
+            print("Stopped local services.")
         else:
             print("Local launcher is not running.")
         return 0

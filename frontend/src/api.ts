@@ -11,7 +11,16 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
       'Cannot connect to Thesis Monitor. Open the Thesis Monitor app to start local services, then reload this page.',
     );
   }
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      response.status >= 500
+        ? 'The server is temporarily unavailable. Please try again shortly.'
+        : 'The server returned an unexpected response. Please reload and try again.',
+    );
+  }
   if (!response.ok)
     throw new Error(
       typeof data.detail === 'string' ? data.detail : 'Please check your inputs and try again.',

@@ -1,9 +1,16 @@
+import os
+
 from alembic import context
 from sqlalchemy import create_engine
 from app.config import settings
+from app.migration_safety import assert_remote_migrations_allowed
 
+configured_url = settings.database_url_unpooled or settings.database_url
+assert_remote_migrations_allowed(
+    configured_url, os.getenv("THESIS_ALLOW_REMOTE_MIGRATIONS") == "1"
+)
 url = (
-    (settings.database_url_unpooled or settings.database_url)
+    configured_url
     .replace("postgres://", "postgresql+psycopg://", 1)
     .replace("postgresql://", "postgresql+psycopg://", 1)
 )

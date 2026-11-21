@@ -1,10 +1,8 @@
-import { Bell, Check, ArrowUpRight } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 import type { Alert } from '../types';
 import { date, format, labels, operators, api } from '../api';
 import { useEffect, useState } from 'react';
 type DeliveryStatus = {
-  configured: boolean;
-  recipient: string;
   deliveries: {
     id: number;
     alert_id: number | null;
@@ -45,20 +43,10 @@ export default function AlertFeed({
     <section className="panel" id="alerts">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">
-            ALERTS / {alerts.filter((a) => !a.acknowledged_at).length} UNREAD
-          </span>
           <h2>Alerts</h2>
         </div>
         <Bell size={20} />
       </div>
-      <p className="muted">
-        {delivery
-          ? delivery.configured
-            ? `Email alerts: ${delivery.recipient}. Delivery runs in a separate server process.`
-            : 'Email alerts are off. The server needs a Resend API key and sender address.'
-          : 'Email delivery status is unavailable.'}
-      </p>
       {delivery?.deliveries
         .filter(
           (d) =>
@@ -80,8 +68,7 @@ export default function AlertFeed({
           <span className="empty-icon">
             <Check size={21} />
           </span>
-          <p>No threshold alerts.</p>
-          <span>Saved rules will flag changes in your latest reporting period.</span>
+          <p>No alerts.</p>
         </div>
       ) : (
         alerts.map((a) => (
@@ -113,20 +100,10 @@ export default function AlertFeed({
                   : ''}
             </p>
             <details>
-              <summary>View calculation and sources</summary>
+              <summary>View calculation</summary>
               <pre>{JSON.stringify(a.evidence, null, 2)}</pre>
             </details>
             <div className="alert-actions">
-              {a.evidence.sources?.[0]?.url && (
-                <a
-                  className="text-button"
-                  href={a.evidence.sources[0].url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Source filing <ArrowUpRight size={14} />
-                </a>
-              )}
               <button
                 className="text-button"
                 disabled={busy || !!a.acknowledged_at}

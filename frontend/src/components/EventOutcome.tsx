@@ -8,6 +8,7 @@ export type OutcomeMetric = {
   direction: 'up' | 'down' | 'unchanged';
   period: string;
   previous_period: string;
+  why_it_matters?: string;
 };
 export type Outcome = {
   status: string;
@@ -22,6 +23,8 @@ export type Outcome = {
 };
 export type CompanyContext = {
   ticker: string;
+  headline?: string;
+  relation: string;
   note: string;
   basis: string;
   facts: { metric: string; value: string; unit: string; period: string; source_urls: string[] }[];
@@ -72,11 +75,13 @@ export default function EventOutcome({
   if (!outcome?.status) return <p className="fine-print">Result not loaded yet.</p>;
   if (outcome.status !== 'reported')
     return <p className="fine-print">{outcome.reason || 'Waiting for the reported result.'}</p>;
+  const explanations = outcome.metrics?.filter((metric) => metric.why_it_matters) ?? [];
   return (
     <div className="event-outcome">
       <div className="event-result-metrics">
         {outcome.metrics?.map((m) => (
-          <div className="event-result-metric" key={m.label}>
+          <article className="event-result-metric" key={m.label}>
+            <span className="event-result-metric-eyebrow">Reported metric</span>
             <span>{m.label}</span>
             <strong>{value(m.value, m.unit)}</strong>
             <p>
@@ -88,71 +93,55 @@ export default function EventOutcome({
             <small>
               {period(m.period, m.label)} vs {period(m.previous_period, m.label)}
             </small>
-          </div>
+            {companies.length > 0 && m.why_it_matters && (
+              <p className="event-metric-why">
+                <b>Why it matters</b>
+                {m.why_it_matters}
+              </p>
+            )}
+          </article>
         ))}
       </div>
-      {outcome.context && <p className="event-result-context">{outcome.context}</p>}
+      {companies.length === 0 && explanations.length > 0 && (
+        <section className="event-company-context">
+          <h4>What this could mean</h4>
+          {explanations.map((metric) => (
+            <p key={metric.label}>
+              {explanations.length > 1 && <strong>{metric.label}. </strong>}
+              {metric.why_it_matters}
+            </p>
+          ))}
+        </section>
+      )}
       {companies.length > 0 && (
         <div className="event-company-context">
-          <h4>Your watchlist</h4>
+          <h4>What this could mean for {companies[0].ticker}</h4>
           {companies.map((c) => (
             <article key={c.ticker}>
-              <strong>{c.ticker}</strong>
-              <p>{c.note}</p>
-              <ul>
-                {c.facts.map((f) => (
-                  <li key={f.metric}>
-                    {f.metric === 'debt'
-                      ? 'Long-term debt'
-                      : f.metric === 'cash'
-                        ? 'Cash'
-                        : 'Annual operating cash flow'}
-                    : {format(f.value, f.unit)} <small>· {f.period}</small>
-                  </li>
-                ))}
-              </ul>
-              {c.thesis_link && (
-                <details>
-                  <summary>Link to your current thesis</summary>
-                  <p>{c.thesis_link}</p>
-                </details>
+              {c.headline && <strong>{c.headline}</strong>}
+              <p className="event-stock-relation">{c.relation}</p>
+              {c.facts.length > 0 && (
+                <ul>
+                  {c.facts.map((f) => (
+                    <li key={f.metric}>
+                      {f.metric === 'debt'
+                        ? 'Long-term debt'
+                        : f.metric === 'cash'
+                          ? 'Cash'
+                          : f.metric === 'operating_cash_flow'
+                            ? 'Operating cash flow'
+                            : f.metric === 'revenue_growth'
+                              ? 'Revenue growth'
+                              : 'Operating margin'}
+                      : {format(f.value, f.unit)} <small>· {f.period}</small>
+                    </li>
+                  ))}
+                </ul>
               )}
-              <details>
-                <summary>Financial sources</summary>
-                <p className="fine-print">{c.basis}</p>
-                {[...new Set(c.facts.flatMap((f) => f.source_urls))].map((url, i) => (
-                  <a className="text-button" href={url} target="_blank" rel="noreferrer" key={url}>
-                    SEC filing {i + 1} ↗
-                  </a>
-                ))}
-              </details>
             </article>
           ))}
         </div>
       )}
-      <details className="event-result-sources">
-        <summary>Result sources and timing</summary>
-        <p className="fine-print">{outcome.basis}</p>
-        {outcome.provisional && (
-          <p className="fine-print">
-            Provisional snapshot; the release-date feed is still being refreshed.
-          </p>
-        )}
-        {outcome.checked_at && (
-          <p className="fine-print">Retrieved {new Date(outcome.checked_at).toLocaleString()}</p>
-        )}
-        {outcome.sources?.map((s, i) => (
-          <a className="text-button" href={s.url} target="_blank" rel="noreferrer" key={s.url}>
-            {s.series || `Report ${i + 1}`}
-            {s.vintage ? ` · as of ${s.vintage}` : ''} ↗
-          </a>
-        ))}
-        {outcome.context_source && (
-          <a className="text-button" href={outcome.context_source} target="_blank" rel="noreferrer">
-            How rates affect the economy ↗
-          </a>
-        )}
-      </details>
     </div>
   );
 }

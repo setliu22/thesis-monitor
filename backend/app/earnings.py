@@ -156,11 +156,10 @@ def shared_calendar(sessions, provider, current):
 
 def refresh_due(company, current, latest_filing=None):
     if not company.last_success:
-        # A failed first import must not create a fresh job every scheduler tick
-        # after the previous job exhausts its own retry budget.
+        # Retry a failed first sync sooner than the normal refresh interval.
         return not company.last_attempt or current - datetime.fromisoformat(
             company.last_attempt
-        ) >= timedelta(hours=settings.financial_refresh_hours)
+        ) >= timedelta(minutes=10)
     state = company.earnings_schedule or {}
     if state.get("provider") != "alphavantage" or not state.get("date"):
         # Missing provider coverage must not permanently freeze financial data.

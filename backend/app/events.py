@@ -1,16 +1,19 @@
 """Persist and reconcile scheduled events and durable advance reminders."""
 
-from datetime import datetime, date, time, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, time, timedelta, timezone
 from uuid import uuid4
+from zoneinfo import ZoneInfo
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from .models import MarketEvent, Company, CalendarCache, ReminderSettings, Delivery
-from .db import SessionLocal
-from .feed_cache import cached_feed
-from .event_sources import fed_events, bls_events, bea_events, election_events
-from .financials import identity
+
 from .config import settings
+from .db import SessionLocal
+from .email_templates import event_reminder_email_content
+from .event_sources import bea_events, bls_events, election_events, fed_events
+from .feed_cache import cached_feed
+from .financials import identity
+from .models import CalendarCache, Company, Delivery, MarketEvent, ReminderSettings
 
 CATEGORIES = ["earnings", "fed", "inflation", "employment", "gdp", "election"]
 
@@ -135,6 +138,7 @@ def reminder_allowed(s, item, current):
     if (
         not event
         or not event.active
+        or event.day <= current.astimezone(ZoneInfo("America/New_York")).date().isoformat()
         or event.revision != item.event_revision
         or not prefs.enabled
         or event.category not in prefs.categories
@@ -142,6 +146,14 @@ def reminder_allowed(s, item, current):
     ):
         return False
     company = s.get(Company, event.company_id) if event.company_id else None
+    local = current.astimezone(ZoneInfo("America/New_York"))
+    event_day = date.fromisoformat(event.day)
+    if any(
+        lead < item.reminder_days
+        and (event_day - timedelta(days=lead), prefs.hour) <= (local.date(), local.hour)
+        for lead in prefs.days
+    ):
+        return False
     return company is None or (company.watched and company.invested)
 
 
@@ -171,64 +183,75 @@ def queue_reminders(sessions=SessionLocal, current=None):
             if company and (not company.watched or not company.invested):
                 continue
             event_day = date.fromisoformat(event.day)
-            for lead in prefs.days:
-                remind_day = event_day - timedelta(days=lead)
-                if remind_day != local.date() or local.hour < prefs.hour:
-                    continue
-                key = identity(
-                    {
-                        "event": event.key,
-                        "revision": event.revision,
-                        "lead": lead,
-                        "recipient": settings.alert_email,
-                    }
+            due_leads = [
+                lead
+                for lead in prefs.days
+                if (event_day - timedelta(days=lead), prefs.hour)
+                <= (local.date(), local.hour)
+            ]
+            if not due_leads:
+                continue
+            lead = min(due_leads)
+            expires = (
+                datetime.combine(
+                    event_day, time.min, ZoneInfo("America/New_York")
                 )
-                existing = s.scalar(
-                    select(Delivery)
-                    .where(Delivery.reminder_key == key)
-                    .with_for_update()
-                )
-                if existing:
-                    if (
-                        existing.status == "cancelled"
-                        and existing.attempts < 6
-                        and (
-                            not existing.first_attempt
-                            or current - datetime.fromisoformat(existing.first_attempt)
-                            < timedelta(hours=23)
-                        )
-                    ):
-                        existing.status = "pending"
-                        existing.error = None
-                        existing.available_at = current.isoformat()
-                        existing.owner = None
-                    continue
-                expires = (
-                    datetime.combine(
-                        remind_day + timedelta(days=1),
-                        time.min,
-                        ZoneInfo("America/New_York"),
+                .astimezone(timezone.utc)
+                .isoformat()
+            )
+            key = identity(
+                {
+                    "event": event.key,
+                    "revision": event.revision,
+                    "lead": lead,
+                    "recipient": settings.alert_email,
+                }
+            )
+            existing = s.scalar(
+                select(Delivery)
+                .where(Delivery.reminder_key == key)
+                .with_for_update()
+            )
+            if existing:
+                if existing.attempts == 0 and existing.status in ("pending", "cancelled"):
+                    existing.expires_at = expires
+                    subject, text = event_reminder_email_content(
+                        event, (event_day - local.date()).days, settings.app_origin
                     )
-                    .astimezone(timezone.utc)
-                    .isoformat()
-                )
-                s.add(
-                    Delivery(
-                        event_id=event.id,
-                        event_revision=event.revision,
-                        reminder_days=lead,
-                        reminder_key=key,
-                        expires_at=expires,
-                        key="reminder-" + uuid4().hex,
-                        payload={
-                            "from": settings.email_from,
-                            "to": [settings.alert_email],
-                            "subject": f"{event.title} — in {lead} day"
-                            + ("s" if lead != 1 else ""),
-                            "text": f"{event.title}\nDate: {event.day} (America/New_York)\nStatus: {event.status}\n\n{event.notes}\n\nSource: {event.source_url}\n\nScheduled event reminder; no prediction of market direction.",
-                        },
+                    existing.payload = existing.payload | {"subject": subject, "text": text}
+                if (
+                    existing.status == "cancelled"
+                    and existing.attempts < 6
+                    and (
+                        not existing.first_attempt
+                        or current - datetime.fromisoformat(existing.first_attempt)
+                        < timedelta(hours=23)
                     )
+                ):
+                    existing.status = "pending"
+                    existing.error = None
+                    existing.available_at = current.isoformat()
+                    existing.owner = None
+                continue
+            subject, text = event_reminder_email_content(
+                event, (event_day - local.date()).days, settings.app_origin
+            )
+            s.add(
+                Delivery(
+                    event_id=event.id,
+                    event_revision=event.revision,
+                    reminder_days=lead,
+                    reminder_key=key,
+                    expires_at=expires,
+                    key="reminder-" + uuid4().hex,
+                    payload={
+                        "from": settings.email_from,
+                        "to": [settings.alert_email],
+                        "subject": subject,
+                        "text": text,
+                    },
                 )
+            )
 
 
 def reminder_send_at(s, item):

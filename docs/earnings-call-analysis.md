@@ -1,5 +1,15 @@
 # Earnings-call thesis comparison
 
+Current implementation: call analysis is a separately bounded enrichment of
+the filing-first claim review. It uses only a transcript that matches the
+filing's verified fiscal quarter, retains speaker turns and nearby Q&A context,
+and reuses the filing batches already saved. By default it retries every 6
+hours for up to 14 days. Missing configuration or an unverified quarter stops
+the call lookup without discarding the filing result. The current branch has
+not been deployed.
+
+The dated notes below document an earlier transcript passage-matching engine.
+
 Each requested Groq comparison now attempts to retrieve the matching earnings call through Alpha Vantage in addition to reviewing the SEC filing. Fiscal year and quarter come from the filing's inline XBRL focus fields, not calendar months. An annual FY report maps to Q4. Missing or ambiguous focus fields skip transcript retrieval; no older call is silently substituted.
 
 Successful transcripts are cached for 24 hours, with failures retried after an hour. HTTP reads are bounded to 4 MB, redirects disabled and errors redact provider response details. Raw speaker turns are snapshotted independently of the filing when analysis is saved. No new database migration or API key is required beyond the existing Alpha Vantage key.

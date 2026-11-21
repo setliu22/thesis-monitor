@@ -1,16 +1,18 @@
 """Transactional outbox. Provider acceptance is not proof of inbox delivery."""
 
-import json
 import logging
 import random
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+
 import httpx
 from sqlalchemy import select
+
 from .config import settings
 from .db import SessionLocal
-from .models import Delivery, Company
+from .email_templates import alert_email_content
+from .models import Company, Delivery
 
 
 def configured():
@@ -23,6 +25,7 @@ def queue_email(session, alert):
     if not configured():
         return
     company = session.get(Company, alert.company_id)
+    subject, text = alert_email_content(company, alert, settings.app_origin)
     session.add(
         Delivery(
             alert_id=alert.id,
@@ -30,14 +33,8 @@ def queue_email(session, alert):
             payload={
                 "from": settings.email_from,
                 "to": [settings.alert_email],
-                "subject": f"{company.ticker}: {alert.title}"[:250],
-                "text": f"{company.ticker}: {alert.title}\n\nEvidence:\n"
-                + json.dumps(alert.evidence, indent=2)
-                + (
-                    f"\n\nOpen monitor: {settings.app_origin}"
-                    if settings.app_origin
-                    else ""
-                ),
+                "subject": subject,
+                "text": text,
             },
         )
     )
