@@ -6,10 +6,14 @@ export default function ThesisHistory({
   companyId,
   currentThesisId,
   onDeleted,
+  onView,
+  viewedId,
 }: {
   companyId: number;
   currentThesisId?: number;
-  onDeleted: (current: ThesisVersion | null, deletedCurrent: boolean) => Promise<void>;
+  onDeleted: (current: ThesisVersion | null, deletedCurrent: boolean, deletedId?: number) => Promise<void>;
+  onView: (version: ThesisVersion) => void;
+  viewedId?: number;
 }) {
   const [versions, setVersions] = useState<ThesisVersion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +34,7 @@ export default function ThesisHistory({
 
   useEffect(() => {
     void loadVersions();
-  }, [companyId]);
+  }, [companyId, currentThesisId]);
 
   async function deleteVersion(version: ThesisVersion) {
     const confirmed = window.confirm(
@@ -45,7 +49,7 @@ export default function ThesisHistory({
         'DELETE',
       );
       await loadVersions();
-      await onDeleted(result.current, result.deleted_id === currentThesisId);
+      await onDeleted(result.current, result.deleted_id === currentThesisId, result.deleted_id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not delete this thesis version.');
     } finally {
@@ -100,6 +104,16 @@ export default function ThesisHistory({
                 </summary>
                 <p>{version.body}</p>
               </details>
+              <div className="thesis-version-actions">
+                <button
+                  type="button"
+                  className="text-button"
+                  aria-label={`View version ${version.version}`}
+                  disabled={deleting || version.id === viewedId}
+                  onClick={() => onView(version)}
+                >
+                  {version.id === viewedId ? 'Viewing' : 'View'}
+                </button>
               <button
                 className="text-button danger"
                 aria-label={`Delete version ${version.version}`}
@@ -108,6 +122,7 @@ export default function ThesisHistory({
               >
                 Delete
               </button>
+              </div>
             </article>
           ))}
         </div>

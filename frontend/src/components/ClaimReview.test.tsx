@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { test, expect, vi, afterEach } from 'vitest';
 import ClaimReview from './ClaimReview';
 import type { Detail } from '../types';
@@ -141,61 +141,27 @@ test('shows the finish estimate and allows a connection retry for the active rev
   expect(status).toHaveTextContent('Next attempt · Jan 5, 1:10 PM EST');
 });
 
-test('automatically requests the latest summary once and presents only the saved prose', async () => {
-  const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 42 }) }));
+test('shows the cited assessment without requesting a summary', () => {
+  const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
-  const onSummaryQueued = vi.fn(async () => {});
-  const props = { busy: false, onAnalyze: vi.fn(), onSummaryQueued };
-  const pending = structuredClone(detail);
-  delete pending.analyses.find((analysis) => analysis.id === 10)!.result.summary;
-  const { rerender, container } = render(<ClaimReview detail={pending} {...props} />);
-  expect(screen.getByText('Writing the comparison…')).toBeVisible();
-  await waitFor(() => expect(onSummaryQueued).toHaveBeenCalledOnce());
-  expect(fetch).toHaveBeenCalledWith(
-    '/api/companies/1/analyses/10/summary?automatic=true',
-    expect.objectContaining({ method: 'POST' }),
-  );
-  rerender(<ClaimReview detail={structuredClone(pending)} {...props} />);
-  expect(fetch).toHaveBeenCalledOnce();
-
-  const complete = structuredClone(detail);
-  const current = complete.analyses.find((analysis) => analysis.id === 10)!;
-  current.result.summary = {
-    policy,
-    sections: [
-      {
-        claim_id: 'C1',
-        direction: 'challenges',
-        text: 'The filing pushes deliveries into next year.',
-        citations: ['E1'],
-      },
-    ],
-  };
-  rerender(<ClaimReview detail={complete} {...props} />);
-  expect(screen.getByText('The filing pushes deliveries into next year.')).toBeVisible();
-  expect(screen.queryByText('Delivery timing')).not.toBeInTheDocument();
-  expect(screen.queryByRole('button')).not.toBeInTheDocument();
-  expect(container.querySelector('dialog, select, details')).toBeNull();
-  expect(fetch).toHaveBeenCalledOnce();
+  const copy = structuredClone(detail);
+  delete copy.analyses.find((analysis) => analysis.id === 10)!.result.summary;
+  render(<ClaimReview detail={copy} busy={false} onAnalyze={vi.fn()} />);
+  expect(screen.getByText('Current report indicates delivery delays.')).toBeVisible();
+  expect(fetch).not.toHaveBeenCalled();
 });
 
-test('a completed inconclusive review has no summary card or model request', () => {
+test('a completed inconclusive review shows completion without requesting a summary', () => {
   const copy = structuredClone(detail);
   const current = copy.analyses.find((analysis) => analysis.id === 10)!;
   current.result.summary_eligible = false;
+  current.result.claim_assessments![0].assessment = 'insufficient evidence';
   current.result.summary!.policy = 'old-policy';
   current.result.summary!.sections[0].text = 'The thesis is unsupported.';
   const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
-  render(<ClaimReview detail={copy} busy={false} onAnalyze={vi.fn()} onSummaryQueued={vi.fn()} />);
-  expect(screen.queryByRole('region', { name: 'Thesis comparison' })).not.toBeInTheDocument();
+  render(<ClaimReview detail={copy} busy={false} onAnalyze={vi.fn()} />);
+  expect(screen.getByRole('region', { name: 'Thesis comparison' })).toBeVisible();
+  expect(screen.getByText('Review complete. No direct findings to display.')).toBeVisible();
   expect(fetch).not.toHaveBeenCalled();
-});
-
-test('a failed summary request leaves a visible status', async () => {
-  const copy = structuredClone(detail);
-  delete copy.analyses.find((analysis) => analysis.id === 10)!.result.summary;
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Unavailable')));
-  render(<ClaimReview detail={copy} busy={false} onAnalyze={vi.fn()} onSummaryQueued={vi.fn()} />);
-  expect(await screen.findByText('The comparison summary could not be written.')).toBeVisible();
 });

@@ -3,6 +3,8 @@
 import json
 from sqlalchemy import select, func
 import httpx
+import pytest
+
 from app.models import Review, Filing, ThesisVersion, Analysis, Job, now
 from app.config import settings
 from app import worker, review_pipeline, scheduled_run, sec
@@ -62,6 +64,7 @@ def setup(sessions, monkeypatch):
                 "claims": [
                     {
                         "text": "Backlog will convert faster this year.",
+                        "driver": "Backlog conversion",
                         "quotes": ["Backlog will convert faster this year."],
                     }
                 ] if "Backlog will convert faster this year." in data["thesis"] else []
@@ -80,7 +83,7 @@ def setup(sessions, monkeypatch):
                 decisions.append(
                     {
                         "target_id": t["id"],
-                        "links": [
+                        "links": [] if "office lease" in text else [
                             {
                                 "claim_id": data["claims"][0]["id"],
                                 "direction": direction,
@@ -180,8 +183,9 @@ def test_unattended_scheduler_discovers_and_reviews_when_facts_late_and_email_of
     assert requests
 
 
+@pytest.mark.parametrize("relevant", [True, False])
 def test_filing_ready_then_late_call_enrichment_reuses_filing_stages(
-    sessions, monkeypatch
+    sessions, monkeypatch, relevant
 ):
     requests = setup(sessions, monkeypatch)
     monkeypatch.setattr(settings, "alphavantage_api_key", "mock-only")
@@ -198,7 +202,10 @@ def test_filing_ready_then_late_call_enrichment_reuses_filing_stages(
                 {
                     "speaker": "CEO",
                     "title": "Chief executive",
-                    "content": "Deliveries accelerated over the reported quarter.",
+                    "content": (
+                        "Deliveries accelerated over the reported quarter."
+                        if relevant else "We renewed the office lease."
+                    ),
                 }
             ],
         }
@@ -221,9 +228,12 @@ def test_filing_ready_then_late_call_enrichment_reuses_filing_stages(
         assert r.status == "complete" and r.state["call"]["status"] == "included"
         results = s.scalars(select(Analysis).order_by(Analysis.id)).all()
         assert len(results) == 2
-        assert results[-1].result["claim_assessments"][0]["assessment"] == "mixed"
+        if relevant:
+            assert results[-1].result["claim_assessments"][0]["assessment"] == "mixed"
+        else:
+            assert results[-1].result["claim_assessments"] == results[0].result["claim_assessments"]
     assert SEC.downloads == 1
-    assert len(requests) > file_requests
+    assert any("evidence" in request for request in requests[file_requests:]) == relevant
     assert (
         sum(
             "targets" in d and any(t["source_type"] == "filing" for t in d["targets"])

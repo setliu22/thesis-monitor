@@ -572,9 +572,24 @@ def run_review(sessions, job, owner):
         )
     phase = "combined"
     combined = state["filing_evidence"] + state["call_evidence"]
-    assessments = evidence.assess_claims(
-        claims, combined, config, runner, prior=prior, progress=progress
-    )
+    filing_assessments = {
+        item["claim_id"]: item for item in state.get("filing_assessments", [])
+    }
+    # A linked neutral passage can still qualify an earlier finding.
+    affected = {
+        claim_id
+        for item in state["call_evidence"]
+        for claim_id in (item.get("claim_ids") or [item["claim_id"]])
+    }
+    checks_to_update = [
+        claim for claim in claims
+        if claim["id"] in affected or claim["id"] not in filing_assessments
+    ]
+    updated = evidence.assess_claims(
+        checks_to_update, combined, config, runner, prior=prior, progress=progress
+    ) if checks_to_update else []
+    by_claim = filing_assessments | {item["claim_id"]: item for item in updated}
+    assessments = [by_claim[claim["id"]] for claim in claims]
     state = _state(
         sessions,
         job,

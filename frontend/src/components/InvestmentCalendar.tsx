@@ -374,7 +374,7 @@ export default function InvestmentCalendar({
                 type="checkbox"
                 checked={invested}
                 onChange={(e) => setInvested(e.target.checked)}
-              />{' '}
+              />
               Investments only
             </label>
           </div>

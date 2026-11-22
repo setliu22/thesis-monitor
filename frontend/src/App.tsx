@@ -1,3 +1,4 @@
+import ArchivedThesisComparison from './components/ArchivedThesisComparison';
 import ThesisComparison from './components/ThesisComparison';
 import ThesisHistory from './components/ThesisHistory';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -44,6 +45,8 @@ export default function App() {
     [showAdd, setShowAdd] = useState(false),
     [showThesisHistory, setShowThesisHistory] = useState(false),
     [thesis, setThesis] = useState('');
+  const [viewedThesis, setViewedThesis] = useState<{ companyId: number; version: ThesisVersion }>();
+  const archivedThesis = viewedThesis?.companyId === selected ? viewedThesis?.version : undefined;
   const [calendarSelection, setCalendarSelection] = useState<number | null | undefined>();
   const calendarCompany =
     calendarSelection === null
@@ -63,6 +66,18 @@ export default function App() {
     setWatchlistLoaded(true);
     setSelected((old) => (rows.some((c) => c.id === old) ? old : (rows[0]?.id ?? null)));
   }, []);
+  useEffect(() => {
+    const clearRemovedAnchor = () => {
+      const { hash, pathname, search } = window.location;
+      if (hash === '#financial-history') {
+        window.history.replaceState(window.history.state, '', pathname + search);
+      }
+    };
+    clearRemovedAnchor();
+    window.addEventListener('hashchange', clearRemovedAnchor);
+    return () => window.removeEventListener('hashchange', clearRemovedAnchor);
+  }, []);
+
   useEffect(() => {
     loadCompanies()
       .catch((e) => setError(e.message))
@@ -92,6 +107,7 @@ export default function App() {
     thesisCompany.current = null;
     setThesis('');
     setShowThesisHistory(false);
+    setViewedThesis(undefined);
     setDetail(null);
   }, [selected]);
   useEffect(() => {
@@ -216,10 +232,10 @@ export default function App() {
       return;
     }
     act(async () => {
-      const response = await api<{ cached?: boolean; status?: string }>(
+      const response = await api<{ cached?: boolean; status?: string; periods?: number }>(
         '/companies/' + selected + '/analyze',
         'POST',
-        { filing_id: filingId, rerun, retry_connection: retryConnection },
+        { filing_id: filingId, rerun, retry_connection: retryConnection, recent_periods: !rerun && !retryConnection },
       );
       await reload();
       setMessage(
@@ -229,7 +245,9 @@ export default function App() {
             : 'Connection retry requested.'
           : response.cached
             ? 'Showing your saved comparison.'
-            : 'Comparison queued against your saved thesis.',
+            : response.periods
+              ? `Review requested for ${response.periods} earnings periods.`
+              : 'Comparison queued against your saved thesis.',
       );
     });
   };
@@ -247,7 +265,17 @@ export default function App() {
           {showThesisHistory ? 'Hide history' : 'History'}
         </button>
       </div>
-      <form
+      {archivedThesis ? (
+        <>
+          <div className="section-heading">
+            <h3>Version {archivedThesis.version}</h3>
+            <button className="text-button" onClick={() => setViewedThesis(undefined)}>
+              Back to current thesis
+            </button>
+          </div>
+          <p className="archived-thesis-text">{archivedThesis.body}</p>
+        </>
+      ) : <form
         onSubmit={(e) => {
           e.preventDefault();
           act(async () => {
@@ -279,13 +307,22 @@ export default function App() {
             Save thesis
           </button>
         </div>
-      </form>
+      </form>}
       {showThesisHistory && (
         <ThesisHistory
           key={selected}
           companyId={selected!}
           currentThesisId={detail.thesis?.id}
-          onDeleted={async (current: ThesisVersion | null, deletedCurrent: boolean) => {
+          viewedId={archivedThesis?.id}
+          onView={(version) => {
+            setViewedThesis(version.id === detail.thesis?.id
+              ? undefined : { companyId: selected!, version });
+            setShowThesisHistory(false);
+          }}
+          onDeleted={async (current, deletedCurrent, deletedId) => {
+            if (deletedId === undefined || deletedId === archivedThesis?.id) {
+              setViewedThesis(undefined);
+            }
             if (deletedCurrent) {
               setThesis(current?.body ?? '');
               await reload();
@@ -606,12 +643,14 @@ export default function App() {
                     {view === 'Thesis' && (
                       <>
                         {thesisPanel}
-                        <ThesisComparison
+                        {archivedThesis ? (
+                          <ArchivedThesisComparison key={archivedThesis.id}
+                            detail={detail} version={archivedThesis} />
+                        ) : <ThesisComparison
                           detail={detail}
                           busy={Boolean(busy || (!detail.review && analyzing))}
                           onAnalyze={compareFiling}
-                          onSummaryQueued={settings?.llm_configured ? reload : undefined}
-                        />
+                        />}
                       </>
                     )}
                   </>

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { test, expect, vi } from 'vitest';
 import CompanyDetail from './CompanyDetail';
 import type { Detail, Observation } from '../types';
@@ -15,7 +15,7 @@ const observation = (metric: string, value: string, end: string): Observation =>
   unavailable_reason: null,
   sources: [],
 });
-test('financial history groups statements and exposes metric source history', () => {
+test('metric cards group statements and open a metric chart', () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => ({ ok: true, json: async () => ({ mappings: [], attempts: [] }) })),
@@ -51,13 +51,11 @@ test('financial history groups statements and exposes metric source history', ()
       settings={() => {}}
     />,
   );
-  const income = screen.getByRole('table', { name: 'Income statement history' });
-  const cash = screen.getByRole('table', { name: 'Cash flow statement history' });
-  expect(within(income).getByText('$120.00M')).toBeInTheDocument();
-  expect(within(cash).getByText('$15.00M')).toBeInTheDocument();
-  expect(within(cash).getByText('$3.00M')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Income statement' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Cash flow statement' })).toBeInTheDocument();
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /^Operating cash flow \$15/ }));
   expect(
-    screen.getByRole('heading', { name: 'Operating cash flow · source evidence' }),
+    screen.getByRole('heading', { name: 'Operating cash flow' }),
   ).toBeInTheDocument();
 });

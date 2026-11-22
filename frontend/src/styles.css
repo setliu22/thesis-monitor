@@ -594,53 +594,6 @@ main {
 .connect-panel .button {
   margin-top: 20px;
 }
-.connect-art {
-  width: 180px;
-  height: 180px;
-  position: relative;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-}
-.orbit {
-  position: absolute;
-  border: 1px solid #cad7b5;
-  border-radius: 50%;
-  inset: 12px;
-}
-.orbit.two {
-  inset: 38px;
-  border-style: dashed;
-}
-.connect-art > span {
-  display: grid;
-  place-items: center;
-  width: 68px;
-  height: 68px;
-  background: #e0e9d0;
-  border: 1px solid #cbd9b7;
-  border-radius: 15px;
-  color: #768f50;
-  box-shadow: 0 5px 15px #748b4410;
-}
-.satellite {
-  position: absolute;
-  right: 20px;
-  top: 26px;
-  background: #f7f9ef;
-  border: 1px solid #d4dec3;
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  color: #92a378;
-}
-.satellite.second {
-  left: 18px;
-  top: auto;
-  bottom: 28px;
-}
 .text-button {
   border: 0;
   background: none;
@@ -995,18 +948,31 @@ td {
   font-size: 9px;
 }
 .trend {
+  position: relative;
   margin-top: 15px;
+}
+.trend-tooltip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 5px 9px;
+  border: 1px solid #dce4da;
+  border-radius: 5px;
+  background: #fff;
+  color: #394d35;
+  font-size: 12px;
+  pointer-events: none;
 }
 .trend svg {
   display: block;
   width: 100%;
-  height: 200px;
+  height: auto;
 }
-.chart-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: #9aa78a;
+.trend svg text {
+  fill: #59694f;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
 }
 .chart-empty {
   text-align: center;
@@ -1019,28 +985,6 @@ td {
   color: #a4ae96;
   line-height: 1.7;
   margin-top: 18px;
-}
-.source-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 14px 0;
-  border-top: 1px solid #e8edde;
-}
-.source-row p {
-  font-size: 9px;
-  color: #9aa68b;
-  margin-top: 5px;
-}
-.source-row strong {
-  font-size: 12px;
-  white-space: nowrap;
-}
-.evidence > p {
-  font-size: 11px;
-  color: #92a17f;
-  margin: 15px 0;
 }
 .modal-backdrop {
   position: fixed;
@@ -1180,9 +1124,6 @@ td {
   .connect-panel {
     padding: 28px;
   }
-  .connect-art {
-    width: 150px;
-  }
   .form-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1219,9 +1160,6 @@ td {
   }
   .metric-card {
     padding: 14px 12px;
-  }
-  .connect-art {
-    display: none;
   }
   .connect-panel {
     padding: 30px;
@@ -1384,12 +1322,6 @@ td {
   .badge {
     font-size: 7px;
   }
-  .source-row {
-    flex-wrap: wrap;
-  }
-  .source-row > div {
-    width: 100%;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .spin {
@@ -1440,26 +1372,12 @@ td {
     font-size: 8px;
   }
 }
-.data-summary {
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: -5px 0 20px;
-  font-size: 11px;
-  color: #7d8c70;
-}
-.data-summary > a {
-  margin-left: auto;
-}
-.history-count,
 .chart-selector {
   display: flex;
   align-items: center;
   gap: 10px;
   white-space: nowrap;
 }
-.history-count select,
 .chart-selector select {
   margin: 0;
   font-size: 11px;
@@ -1467,98 +1385,10 @@ td {
   width: auto;
   max-width: 190px;
 }
-.financial-table {
-  font-variant-numeric: tabular-nums;
-}
-.financial-table thead th {
-  text-align: right;
-  font-size: 10px;
-  padding: 13px 16px;
-}
-.financial-table th:first-child {
-  position: sticky;
-  left: 0;
-  background: #fff;
-  text-align: left;
-  z-index: 1;
-  min-width: 175px;
-  border-right: 1px solid #edf0e6;
-}
-.financial-table tbody th {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0;
-  padding: 15px 12px;
-  color: #657853;
-}
-.financial-table td {
-  text-align: right;
-  padding: 12px 16px;
-  min-width: 110px;
-}
-.financial-value {
-  border: 0;
-  background: none;
-  padding: 4px;
-  color: #49653a;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.financial-value:hover {
-  text-decoration: underline;
-}
-.financial-value sup {
-  font-size: 8px;
-  margin-left: 2px;
-}
 .unavailable {
   color: #adb5a1;
 }
-.balance-heading {
-  margin-top: 30px;
-}
-.history-evidence {
-  padding: 18px;
-  border: 1px solid #dce6cd;
-  border-radius: 6px;
-  background: #f8faf3;
-  margin-top: 20px;
-}
-.history-evidence > p {
-  font-size: 12px;
-  margin-top: 12px;
-}
-.financial-table-wrap {
-  max-height: 520px;
-  overflow: auto;
-}
-.financial-table thead th {
-  position: sticky;
-  top: 0;
-  background: #f6f8f1;
-  z-index: 2;
-}
-.financial-table thead th:first-child {
-  z-index: 3;
-  background: #f6f8f1;
-}
 @media (max-width: 720px) {
-  .data-summary {
-    gap: 10px;
-    font-size: 9px;
-  }
-  .data-summary > a {
-    margin: 0;
-  }
-  .financial-table th:first-child {
-    min-width: 135px;
-  }
-  .financial-table td {
-    min-width: 100px;
-  }
-  .history-count select {
-    max-width: 105px;
-  }
   .chart-selector select {
     max-width: 150px;
   }
@@ -1668,7 +1498,9 @@ td {
 .calendar-legend input {
   width: 12px;
   height: 12px;
+  flex: 0 0 12px;
   margin: 0;
+  padding: 0;
   accent-color: #496345;
 }
 .event-marker {
@@ -1837,9 +1669,13 @@ td {
   gap: 6px;
   cursor: pointer;
 }
-.calendar-foot input {
+.calendar-foot input[type='checkbox'],
+.calendar-reminder-modal input[type='checkbox'] {
   width: 13px;
   height: 13px;
+  flex: 0 0 13px;
+  margin: 0;
+  padding: 0;
   accent-color: #496345;
 }
 .calendar-agenda {
@@ -2030,9 +1866,6 @@ td {
   color: #788370;
 }
 .holding-toggle input,
-.reminder-options input {
-  accent-color: #496345;
-}
 /* Search suggestions */
 .company-search {
   position: relative;
@@ -2122,12 +1955,6 @@ td {
   height: 54px;
   display: block;
 }
-.metric-sparkline .chart-labels {
-  font-size: 8px;
-  letter-spacing: 0;
-  color: #98a38c;
-  margin: 0;
-}
 .metric-card .metric-sparkline span {
   font-size: 8px;
 }
@@ -2137,27 +1964,6 @@ td {
   align-items: center;
   font-size: 9px;
   color: #a6ae9b;
-}
-.financial-table th .metric-sparkline {
-  width: 125px;
-  margin: 6px 0;
-}
-.financial-table th .metric-sparkline svg {
-  height: 28px;
-}
-.financial-table th .chart-labels {
-  display: none;
-}
-.financial-table th .mini-chart-empty {
-  height: 24px;
-  max-width: 125px;
-  font-size: 8px;
-  font-weight: 400;
-}
-.chart-readout {
-  font-size: 12px;
-  color: #617450;
-  margin: 10px 0;
 }
 @media (min-width: 1500px) {
   .calendar-cell {
@@ -2292,9 +2098,6 @@ td {
   .metric-sparkline svg {
     height: 43px;
   }
-  .metric-sparkline .chart-labels {
-    font-size: 7px;
-  }
   .search-results {
     width: 100%;
   }
@@ -2309,9 +2112,6 @@ td {
 .statement-metrics > h3 {
   margin: 0 0 14px;
   font-size: 17px;
-}
-.statement-history + .statement-history {
-  margin-top: 30px;
 }
 
 .thesis-comparison h2 {
@@ -2540,7 +2340,7 @@ td {
   font-size: 14px;
 }
 
-/* Keep the company picker indicator aligned across browser-native select styles. */
+/* Keep picker indicators aligned across native select styles. */
 .mobile-watchlist select,
 .calendar-context-control select {
   appearance: none;
@@ -2557,4 +2357,40 @@ td {
     appearance: auto;
     background-image: none;
   }
+}
+
+.review-about {
+  margin-block: 8px 16px;
+}
+.review-about p {
+  margin: 8px 0 0;
+  color: #4b5a40;
+  line-height: 1.55;
+}
+
+.thesis-period-reviews {
+  display: grid;
+  gap: 14px;
+}
+
+.review-points h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.review-points ol {
+  margin: 0 0 16px;
+  padding-inline-start: 1.4em;
+}
+.review-points li + li {
+  margin-block-start: 5px;
+}
+
+.archived-thesis-text {
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+.thesis-version-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }

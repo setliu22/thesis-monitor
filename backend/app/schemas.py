@@ -55,3 +55,4 @@ class AnalysisInput(BaseModel):
     filing_id: int = Field(gt=0)
     rerun: bool = False
     retry_connection: bool = False
+    recent_periods: bool = False

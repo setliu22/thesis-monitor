@@ -534,7 +534,7 @@ def test_thesis_point_must_be_anchored_in_the_saved_thesis():
 
     thesis = "Backlog should convert next year if supplier lead times normalize."
     ungrounded = Runner(lambda data: {
-        "claims": [{"text": "Margins rise", "quotes": ["Operating margin will rise."]}]
+        "claims": [{"driver": "Margins", "text": "Margins rise", "quotes": ["Operating margin will rise."]}]
     })
     with pytest.raises(ValueError, match="quote the saved thesis"):
         select_thesis_claims(thesis, CONFIG, ungrounded)

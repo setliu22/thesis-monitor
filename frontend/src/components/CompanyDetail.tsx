@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ArrowUpRight, Database, TrendingUp, FileText } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { date, format, labels, instantMetrics, statementGroups } from '../api';
-import FinancialHistory from './FinancialHistory';
 import type { Detail } from '../types';
 import Trend from './Trend';
 export { default as Trend } from './Trend';
@@ -47,13 +46,6 @@ export default function CompanyDetail({
           </button>
         </div>
       </div>
-      {end && (
-        <div className="data-summary">
-          <a href="#financial-history" className="text-button">
-            View financial history ↓
-          </a>
-        </div>
-      )}
       {statementGroups.map((group) => (
         <section className="statement-metrics" key={group.title} aria-label={group.title}>
           <h3>{group.title}</h3>
@@ -92,7 +84,7 @@ export default function CompanyDetail({
                     )}
                   />
 
-                  <span>{o ? date(o.end) : 'Metric unavailable'}</span>
+                  {o?.value != null && <span>{date(o.end)}</span>}
                 </button>
               );
             })}
@@ -102,7 +94,7 @@ export default function CompanyDetail({
       {evidence && (
         <section className="panel evidence" id="selected-metric-history">
           <div className="section-heading">
-            <h3>{labels[evidence]} · source evidence</h3>
+            <h3>{labels[evidence]}</h3>
             <button className="text-button" onClick={() => setEvidence(null)}>
               Close
             </button>
@@ -116,49 +108,10 @@ export default function CompanyDetail({
                 p.kind === (instantMetrics.has(evidence) ? 'instant' : kind),
             )}
           />
-          {latest(evidence) ? (
-            <>
-              <p>
-                {latest(evidence)?.unavailable_reason ||
-                  `${latest(evidence)?.derivation.replaceAll('_', ' ')} · Period ${date(latest(evidence)?.start)} – ${date(latest(evidence)?.end)}`}
-              </p>
-              {latest(evidence)?.sources.map((s, i) => (
-                <div className="source-row" key={i}>
-                  <div>
-                    <code>{s.tag}</code>
-                    {s.mapping_note && <p>{s.mapping_note}</p>}
-                    <p>
-                      {date(s.start)} – {date(s.end)} · Filed {date(s.filed)}
-                    </p>
-                  </div>
-                  <strong>
-                    {format(s.value, evidence === 'diluted_eps' ? 'USD/share' : 'USD')}
-                  </strong>
-                </div>
-              ))}
-            </>
-          ) : (
-            <p className="muted">
-              This metric is unavailable until a compatible SEC fact is synced.
-            </p>
-          )}
         </section>
       )}
       {!end && (
         <section className="connect-panel">
-          <div className="connect-art">
-            <div className="orbit one" />
-            <div className="orbit two" />
-            <span>
-              <Database size={28} />
-            </span>
-            <i className="satellite">
-              <FileText size={15} />
-            </i>
-            <i className="satellite second">
-              <TrendingUp size={15} />
-            </i>
-          </div>
           <div>
             <h2>No SEC data yet</h2>
             <p>
@@ -173,7 +126,6 @@ export default function CompanyDetail({
           </div>
         </section>
       )}
-      <FinancialHistory observations={detail.observations} kind={kind} />
     </>
   );
 }

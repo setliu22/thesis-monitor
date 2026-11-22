@@ -1,3 +1,5 @@
+import ThesisPoints, { groupThesisPoints } from './ThesisPoints';
+import ReviewAbout from './ReviewAbout';
 import AnalysisQueue from './AnalysisQueue';
 import ClaimReview from './ClaimReview';
 import { date, format, labels } from '../api';
@@ -98,20 +100,55 @@ export default function ThesisComparison({
   detail,
   busy,
   onAnalyze,
-  onSummaryQueued,
 }: {
   detail: Detail;
   busy: boolean;
-  onAnalyze: (filingId: number, rerun?: boolean, retryConnection?: boolean) => void;
-  onSummaryQueued?: () => Promise<void>;
+  onAnalyze?: (filingId: number, rerun?: boolean, retryConnection?: boolean) => void;
 }) {
+  const periods = detail.recent_reviews ?? [];
+  if (periods.length) {
+    const latestId = periods[0].filing_id;
+    const points = groupThesisPoints(periods.flatMap(({ filing_id }) => {
+      const analysis = detail.analyses.find((item) =>
+        item.filing_id === filing_id && item.thesis_id === detail.thesis?.id &&
+        item.result.claim_assessments,
+      );
+      return analysis?.result.claims ?? [];
+    }));
+    const pointNumbers = new Map([...points.keys()].map((point, index) => [point, index + 1]));
+    return (
+      <div className="thesis-period-reviews">
+        <div className="panel">
+          <div className="section-heading">
+            <h2>Thesis comparison</h2>
+            {latestId != null && detail.thesis && onAnalyze && (
+              <button className="button secondary" disabled={busy}
+                onClick={() => onAnalyze(latestId)}>
+                Review latest {periods.length === 1 ? 'earnings' : `${periods.length} earnings periods`}
+              </button>
+            )}
+          </div>
+          <ReviewAbout />
+        </div>
+        {points.size > 0 && (
+          <section className="panel review-points" aria-label="Thesis points">
+            <h3>Thesis points</h3>
+            <ThesisPoints drivers={points} />
+          </section>
+        )}
+        {periods.map(({ filing_id }) => filing_id != null && (
+          <ClaimReview key={filing_id} periodId={filing_id} detail={detail} sharedPointNumbers={pointNumbers}
+            busy={busy} onAnalyze={onAnalyze} />
+        ))}
+      </div>
+    );
+  }
   if (detail.review || detail.analyses.some((a) => a.result.claim_assessments))
     return (
       <ClaimReview
         detail={detail}
         busy={busy}
         onAnalyze={onAnalyze}
-        onSummaryQueued={onSummaryQueued}
       />
     );
   const analysis = detail.analyses[0];
@@ -175,7 +212,7 @@ export default function ThesisComparison({
         <div>
           <h2>Thesis comparison</h2>
         </div>
-        {latest && (
+        {latest && onAnalyze && (
           <button
             className="button secondary"
             disabled={busy || !detail.thesis}
@@ -185,7 +222,8 @@ export default function ThesisComparison({
           </button>
         )}
       </div>
-      <AnalysisQueue />
+      <ReviewAbout />
+      {onAnalyze && <AnalysisQueue />}
       {job && (
         <div className="analysis-progress" role="status" aria-live="polite">
           <p>

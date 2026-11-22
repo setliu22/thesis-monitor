@@ -66,7 +66,6 @@ test('empty SEC data shows unavailable values and setup action', async () => {
 });
 test('metrics show the monitoring rules and the thesis tab shows the saved analysis', async () => {
   const summaryText = 'The filing says repeat orders increased 18%.';
-  const summaryPolicy = 'direct-evidence-v1';
   backend({
     ...detail,
     thesis: { id: 3, version: 1, body: 'Repeat orders should grow.' },
@@ -78,9 +77,9 @@ test('metrics show the monitoring rules and the thesis tab shows the saved analy
         filing_id: 4,
         thesis_id: 3,
         result: {
-          claim_assessments: [],
-          summary_policy: summaryPolicy,
-          summary: { policy: summaryPolicy, sections: [{ text: summaryText }] },
+          claim_assessments: [
+            { claim_id: 'C1', assessment: 'supports', finding: summaryText, citations: ['E1'] },
+          ],
         },
       },
     ],
@@ -261,7 +260,7 @@ test('Review earnings queues a comparison for the latest filing', async () => {
     '/api/companies/1/analyze',
     expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ filing_id: 9, rerun: false, retry_connection: false }),
+      body: JSON.stringify({ filing_id: 9, rerun: false, retry_connection: false, recent_periods: true }),
     }),
   );
 });
@@ -463,4 +462,36 @@ test('optional Groq mapping wait is not displayed as SEC syncing', async () => {
   await screen.findByText('No SEC data yet');
   expect(screen.getByRole('button', { name: 'Refresh SEC data' })).toBeEnabled();
   expect(screen.queryByRole('button', { name: 'Sync in progress' })).not.toBeInTheDocument();
+});
+
+test('viewing a past thesis shows only its saved comparisons and preserves the current draft', async () => {
+  const current = { id: 3, version: 3, body: 'Current thesis.', created_at: '2026-11-20' };
+  const older = { id: 2, version: 2, body: 'Earlier thesis.', created_at: '2026-11-19' };
+  backend({ ...detail, thesis: current });
+  const original = fetch;
+  const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+    if (url === '/api/companies/1/thesis/versions')
+      return { ok: true, json: async () => [current, older] };
+    if (url === '/api/companies/1/thesis/versions/2/comparisons')
+      return { ok: true, json: async () => ({
+        filings: [{ id: 9, form: '10-Q', report_date: '2026-09-30' }],
+        analyses: [{ id: 1, filing_id: 9, thesis_id: 2, result: {
+          claim_assessments: [{ claim_id: 'C1', assessment: 'supports',
+            finding: 'Earlier saved finding.', citations: ['E1'] }],
+        } }],
+      }) };
+    return original(url, options);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thesis' }));
+  fireEvent.change(await screen.findByLabelText('Your investment thesis'), { target: { value: 'Unsaved draft.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'History' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'View version 2' }));
+  expect(await screen.findByText('Earlier saved finding.')).toBeVisible();
+  expect(screen.getByText('Earlier thesis.')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Rerun review' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to current thesis' }));
+  expect(screen.getByLabelText('Your investment thesis')).toHaveValue('Unsaved draft.');
+  expect(screen.queryByText('Earlier saved finding.')).not.toBeInTheDocument();
 });

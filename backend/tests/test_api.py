@@ -116,6 +116,11 @@ def test_thesis_history_deletes_versions_and_their_comparisons(api, sessions):
     assert versions.status_code == 200
     assert [version["version"] for version in versions.json()] == [2, 1]
 
+    archive = api.get(f"/api/companies/1/thesis/versions/{first_id}/comparisons")
+    assert archive.status_code == 200
+    assert [row["id"] for row in archive.json()["analyses"]] == [first_analysis_id]
+    assert archive.json()["filings"][0]["report_date"] == "2026-09-30"
+
     deleted = api.delete(f"/api/companies/1/thesis/versions/{first_id}")
     assert deleted.status_code == 200
     assert deleted.json()["deleted_id"] == first_id
@@ -529,3 +534,36 @@ def test_saved_source_is_on_demand_and_not_in_polling_payload(api,sessions):
     assert 'FULL SOURCE ONLY ON DEMAND' not in api.get('/api/companies/1').text
     saved=api.get(f'/api/reviews/{rid}/sources/call')
     assert saved.status_code==200 and saved.json()['turns'][0]['content']=='FULL SOURCE ONLY ON DEMAND'
+
+
+def test_review_earnings_queues_four_distinct_recent_periods(api, sessions, monkeypatch):
+    from sqlalchemy import select
+    from app import analysis_dispatch, main
+    from app.config import settings
+    from app.models import Filing, Job, ThesisVersion
+
+    monkeypatch.setattr(settings, "groq_api_key", "test-key")
+    monkeypatch.setattr(main, "require_sec", lambda: None)
+    monkeypatch.setattr(analysis_dispatch, "wake_analysis", lambda: None)
+    with sessions.begin() as s:
+        filings = [
+            Filing(company_id=1, accession=f"period-{i}", form="10-Q",
+                   filed=f"2026-0{i}-15", report_date=f"2026-0{i}-01", document="q.htm")
+            for i in range(1, 6)
+        ]
+        s.add_all([*filings, ThesisVersion(company_id=1, version=1, body="Demand is growing.")])
+        s.flush()
+        expected = {filing.id for filing in filings[1:]}
+        latest = filings[-1].id
+
+    for _ in range(2):
+        response = api.post("/api/companies/1/analyze",
+                            json={"filing_id": latest, "recent_periods": True})
+        assert response.status_code == 202
+        assert response.json()["periods"] == 4
+    with sessions() as s:
+        jobs = list(s.scalars(select(Job).where(Job.kind == "analysis")))
+        assert len(jobs) == 4
+        assert {job.payload["filing_id"] for job in jobs} == expected
+    detail = api.get("/api/companies/1").json()
+    assert {review["filing_id"] for review in detail["recent_reviews"]} == expected

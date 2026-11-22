@@ -28,7 +28,7 @@ from .models import (
 from .schemas import CompanyInput, ThesisInput, RuleInput, AnalysisInput
 from .sec import SecClient, SecError, valid_identity, filing_path
 from .financials import METRICS
-from .reviews import latest_status as latest_review_status
+from .reviews import latest_status as latest_review_status, recent_earnings_filings
 from .jobs import enqueue_refresh
 from .rules import latest_rules, evaluate_company
 
@@ -362,6 +362,14 @@ def detail(
     )
 
     review_status = latest_review_status(s, company_id, filing_id=filing_id)
+    recent_filings = recent_earnings_filings(s, company_id)
+    recent_reviews = [
+        review_status if f.id == review_status.get("filing_id")
+        else latest_review_status(s, company_id, filing_id=f.id)
+        for f in recent_filings
+    ]
+    listed_ids = {item["id"] for item in filings}
+    filings.extend(record(f) for f in recent_filings if f.id not in listed_ids)
     analysis_rows = list(
         s.scalars(
             select(Analysis)
@@ -370,7 +378,7 @@ def detail(
             .limit(10)
         )
     )
-    for report_id in {review_status.get("filing_id"), filing_id} - {None}:
+    for report_id in {review_status.get("filing_id"), filing_id, *(f.id for f in recent_filings)} - {None}:
         query = select(Analysis).where(
             Analysis.company_id == company_id, Analysis.filing_id == report_id
         )
@@ -384,6 +392,7 @@ def detail(
     return {
         "company": record(company) | {"stale": stale},
         "review": review_status,
+        "recent_reviews": recent_reviews,
         "thesis": record(thesis) if thesis else None,
         "rules": [record(r) for r in latest_rules(s, company_id)],
         "observations": observations,
@@ -485,6 +494,29 @@ def thesis_versions(company_id: int, s: Session = Depends(get_session)):
         .order_by(ThesisVersion.version.desc())
     ).all()
     return [record(version) for version in versions]
+
+
+@app.get("/api/companies/{company_id}/thesis/versions/{thesis_id}/comparisons")
+def thesis_version_comparisons(company_id: int, thesis_id: int, s: Session = Depends(get_session)):
+    company_or_404(s, company_id)
+    thesis = s.scalar(select(ThesisVersion).where(
+        ThesisVersion.company_id == company_id, ThesisVersion.id == thesis_id,
+    ))
+    if thesis is None:
+        raise HTTPException(404, "Thesis version not found")
+    rows = s.execute(
+        select(Analysis, Filing).join(Filing, Analysis.filing_id == Filing.id)
+        .where(Analysis.company_id == company_id, Analysis.thesis_id == thesis_id,
+               Filing.company_id == company_id)
+        .order_by(Filing.report_date.desc(), Filing.filed.desc(), Analysis.id.desc())
+    )
+    latest = {}
+    for analysis, filing in rows:
+        latest.setdefault(filing.id, (analysis, filing))
+    return {
+        "analyses": [analysis_record(analysis) for analysis, _ in latest.values()],
+        "filings": [record(filing) for _, filing in latest.values()],
+    }
 
 
 @app.delete("/api/companies/{company_id}/thesis/versions/{thesis_id}")
@@ -614,6 +646,18 @@ def analyze(
     from .analysis_dispatch import wake_analysis
 
     try:
+        if data.recent_periods and not (data.rerun or data.retry_connection):
+            filings = recent_earnings_filings(s, company_id)
+            if not filings:
+                raise ValueError("No eligible earnings filings are available.")
+            outcomes = [request_review(s, company_id, filing.id, manual=True) for filing in filings]
+            s.commit()
+            if any(outcome["job"] for outcome in outcomes):
+                background_tasks.add_task(wake_analysis)
+            return {
+                "periods": len(filings),
+                "cached": all(outcome["cached"] for outcome in outcomes),
+            }
         outcome = request_review(
             s,
             company_id,

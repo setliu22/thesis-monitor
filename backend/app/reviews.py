@@ -11,7 +11,7 @@ from .config import settings
 from .groq_runtime import PermanentFailure
 from .models import Company, Filing, ThesisVersion, Review, Job, CalendarCache, now
 
-ANALYSIS_VERSION = "v7-claim-review"
+ANALYSIS_VERSION = "v10-direct-findings"
 AUTO_FORMS = ("10-Q", "10-K")
 
 
@@ -118,6 +118,20 @@ def recent_earnings_periods(s, company_id):
         .order_by(period.desc())
         .limit(RECENT_EARNINGS_PERIODS)
     ))
+
+
+def recent_earnings_filings(s, company_id):
+    period = _period_column()
+    periods = recent_earnings_periods(s, company_id)
+    filings = s.scalars(
+        select(Filing)
+        .where(Filing.company_id == company_id, Filing.form.in_(AUTO_FORMS), period.in_(periods))
+        .order_by(period.desc(), Filing.filed.desc(), Filing.accession.desc())
+    )
+    winners = {}
+    for filing in filings:
+        winners.setdefault(earnings_period(filing), filing)
+    return list(winners.values())
 
 
 def require_recent_earnings(s, filing):

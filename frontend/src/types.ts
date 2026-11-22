@@ -143,6 +143,7 @@ export type Analysis = {
 };
 export type Detail = {
   review?: ReviewStatus;
+  recent_reviews?: ReviewStatus[];
   company: Company;
   thesis: ThesisVersion | null;
   rules: Rule[];
@@ -159,7 +160,7 @@ export type Settings = {
   metrics: Record<string, string>;
 };
 
-export type ThesisClaim = { id: string; text: string };
+export type ThesisClaim = { id: string; text: string; driver?: string };
 export type ReviewEvidence = {
   id: string;
   claim_id: string;

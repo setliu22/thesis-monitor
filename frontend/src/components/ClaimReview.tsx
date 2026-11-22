@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { api, date } from '../api';
+import ThesisPoints, { driverTitle, groupThesisPoints } from './ThesisPoints';
+import ReviewAbout from './ReviewAbout';
+import { date } from '../api';
 import type { Detail } from '../types';
 
 const labels: Record<string, string> = {
@@ -31,23 +32,22 @@ export default function ClaimReview({
   detail,
   busy,
   onAnalyze,
-  onSummaryQueued,
+  periodId,
+  sharedPointNumbers,
 }: {
   detail: Detail;
+  periodId?: number;
+  sharedPointNumbers?: ReadonlyMap<string, number>;
   busy: boolean;
-  onAnalyze: (id: number, rerun?: boolean, retryConnection?: boolean) => void;
-  onSummaryQueued?: () => Promise<void>;
+  onAnalyze?: (id: number, rerun?: boolean, retryConnection?: boolean) => void;
 }) {
-  const requested = useRef(new Set<number>());
-  const [summaryErrorFor, setSummaryErrorFor] = useState<number>();
-  const [summarySettledFor, setSummarySettledFor] = useState<number>();
-  const filing = detail.filings
+  const filing = periodId === undefined ? detail.filings
     .filter((f) => f.form === '10-Q' || f.form === '10-K')
     .sort((a, b) =>
       (b.report_date || b.filed).localeCompare(a.report_date || a.filed) ||
       b.filed.localeCompare(a.filed) || b.accession.localeCompare(a.accession),
-    )[0];
-  const current = filing?.id === detail.review?.filing_id ? detail.review : undefined;
+    )[0] : detail.filings.find((item) => item.id === periodId);
+  const current = (detail.recent_reviews ?? [detail.review]).find((review) => review?.filing_id === filing?.id);
   const analysis = detail.analyses.find(
     (a) =>
       a.filing_id === filing?.id && a.thesis_id === detail.thesis?.id && a.result.claim_assessments,
@@ -60,38 +60,10 @@ export default function ClaimReview({
       j.payload?.filing_id === filing?.id &&
       j.payload?.thesis_id === detail.thesis?.id,
   );
-  const policy = analysis?.result.summary_policy;
-  const summary =
-    policy && analysis?.result.summary?.policy === policy ? analysis.result.summary : undefined;
-  const summaryJob =
-    policy && analysis
-      ? detail.jobs.find(
-          (j) =>
-            j.payload?.summary_analysis_id === analysis.id && j.payload.summary_policy === policy,
-        )
-      : undefined;
-  const canRequestSummary = Boolean(
-    onSummaryQueued && analysis?.result.summary_eligible && !summary && !job && !summaryJob,
-  );
-  const analysisId = analysis?.id;
-  const companyId = detail.company.id;
-
-  useEffect(() => {
-    if (!canRequestSummary || analysisId === undefined || requested.current.has(analysisId)) return;
-    requested.current.add(analysisId);
-    api<{ cached?: boolean }>(
-      `/companies/${companyId}/analyses/${analysisId}/summary?automatic=true`,
-      'POST',
-    )
-      .then(async (response) => {
-        await onSummaryQueued?.();
-        if (response.cached) setSummarySettledFor(analysisId);
-      })
-      .catch(() => setSummaryErrorFor(analysisId));
-  }, [analysisId, canRequestSummary, companyId, onSummaryQueued]);
-
   const progress = job?.payload?.progress;
-  const status = current?.status ?? (job ? 'processing' : 'review_available');
+  const status = periodId !== undefined && !current?.review_id && current?.status === 'scheduled'
+    ? 'review_available'
+    : current?.status ?? (job ? 'processing' : 'review_available');
   const estimate = current?.completion_estimate;
   const next = current?.next_attempt ?? job?.available_at;
   const failed = status === 'failed';
@@ -100,21 +72,24 @@ export default function ClaimReview({
     job?.status === 'queued' &&
     job.payload?.wait_kind === 'groq_provider';
   const showReviewStatus = !analysis || Boolean(job) || failed;
-  const summaryPending =
-    summaryJob?.status === 'queued' ||
-    summaryJob?.status === 'running' ||
-    (canRequestSummary && summaryErrorFor !== analysisId && summarySettledFor !== analysisId);
-  const paragraphs = summary?.sections.map((part) => part.text) ?? [];
-  const summaryFailed =
-    !summary &&
-    (summaryJob?.status === 'failed' ||
-      (analysisId !== undefined && summaryErrorFor === analysisId));
-  if (!showReviewStatus && !summaryPending && !summaryFailed && !paragraphs.length) return null;
+  const points = analysis?.result.claims ?? [];
+  const drivers = groupThesisPoints(points);
+  const pointNumbers = sharedPointNumbers ??
+    new Map([...drivers.keys()].map((driver, index) => [driver, index + 1]));
+  const pointsById = new Map(points.map((point) => [
+    point.id, { ...point, number: pointNumbers.get(driverTitle(point)) },
+  ]));
+  const displayParagraphs = (analysis?.result.claim_assessments ?? [])
+    .filter((item) =>
+      item.assessment !== 'insufficient evidence' &&
+      item.citations.length > 0 && item.finding.trim(),
+    )
+    .map((item) => ({ claim_id: item.claim_id, text: item.finding }));
 
   return (
     <section className="panel thesis-comparison claim-review" aria-label="Thesis comparison">
       <header className="review-heading">
-        <h2>Thesis comparison</h2>
+        {periodId === undefined && <h2>Thesis comparison</h2>}
         {filing && (
           <p className="review-meta">
             {filing.form} · {date(filing.report_date)}
@@ -122,17 +97,31 @@ export default function ClaimReview({
           </p>
         )}
       </header>
-      {paragraphs.length > 0 && (
-        <div className="review-answer">
-          {paragraphs.map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
+      {periodId === undefined && <ReviewAbout />}
+      {!sharedPointNumbers && points.length > 0 && (
+        <div className="review-points">
+          <h3>Thesis points</h3>
+          <ThesisPoints drivers={drivers} />
         </div>
       )}
-      {!summary && summaryPending && (
-        <p role="status">{summaryJob?.error || 'Writing the comparison…'}</p>
+      {displayParagraphs.length > 0 && (
+        <div className="review-answer">
+          {displayParagraphs.map((paragraph, index) => {
+            const point = pointsById.get(paragraph.claim_id);
+            return (
+              <p key={`${paragraph.claim_id}-${index}`}>
+                {point && (
+                  <><strong>{sharedPointNumbers ? `Point ${point.number}` : `${point.number}. ${point.text.replace(/[.!?]+$/, '')}`}:</strong>{' '}</>
+                )}
+                {paragraph.text}
+              </p>
+            );
+          })}
+        </div>
       )}
-      {summaryFailed && <p role="status">The comparison summary could not be written.</p>}
+      {!showReviewStatus && !displayParagraphs.length && (
+        <p role="status">Review complete. No direct findings to display.</p>
+      )}
       {showReviewStatus && (
         <div role="status" className="review-status">
           <p>
@@ -155,7 +144,13 @@ export default function ClaimReview({
           )}
         </div>
       )}
-      {showReviewStatus && filing && detail.thesis && (!job || canRetryConnection) && (
+      {onAnalyze && periodId !== undefined && (status === 'complete' || (status === 'review_available' && analysis)) && !job && filing && detail.thesis && (
+        <button className="text-button review-action" disabled={busy}
+          onClick={() => onAnalyze(filing.id, true)}>
+          Rerun review
+        </button>
+      )}
+      {onAnalyze && showReviewStatus && filing && detail.thesis && (!job || canRetryConnection) && (periodId === undefined || failed || canRetryConnection) && (
         <button
           className="text-button review-action"
           disabled={busy}
