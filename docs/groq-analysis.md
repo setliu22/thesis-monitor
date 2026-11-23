@@ -203,13 +203,13 @@ rather than exposing SQL parameters in the UI.
 ### Local hybrid retrieval
 
 New filing and earnings call selections combine keyword ranking and local
-MiniLM similarity using reciprocal rank fusion. Source passage vectors are cached
-separately from thesis queries under `work/embedding-cache/`, so thesis edits do
-not require re-encoding unchanged documents. Saved selections and reviews remain
-reusable. Retrieval preserves the original passage IDs and source metadata.
+MiniLM similarity using reciprocal rank fusion. The local model encodes the
+source passages and thesis points together once per retrieval; vectors are not
+persisted. Saved selections and reviews remain reusable. Retrieval preserves the
+original passage IDs and source metadata.
 
 The worker defaults to the evaluation Python environment at
-`work/local-model-eval-venv/bin/python` and the locally cached
+`work/local-model-eval-venv/bin/python` and the locally installed
 `sentence-transformers/all-MiniLM-L6-v2` model. Set `THESIS_EMBEDDING_PYTHON`
 to a Python executable with `sentence-transformers` installed, or
 `THESIS_EMBEDDING_MODEL` to a local model snapshot, to override those defaults.

@@ -1,13 +1,10 @@
-"""Encode and cache passage vectors using the installed local MiniLM runtime."""
+"""Encode passage vectors using the installed local MiniLM runtime."""
 
-import gzip
-import hashlib
 import json
 import logging
 import os
 from pathlib import Path
 import subprocess
-import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -54,16 +51,7 @@ def embed(texts):
         "THESIS_EMBEDDING_PYTHON", ROOT / "work/local-model-eval-venv/bin/python"
     ))
     model = os.environ.get("THESIS_EMBEDDING_MODEL", MODEL)
-    fingerprint = str(Path(model).resolve()) if Path(model).exists() else model
     encoded = json.dumps(texts, ensure_ascii=False)
-    digest = hashlib.sha256(f"minilm-windows-v3:{fingerprint}:{encoded}".encode()).hexdigest()
-    cache = ROOT / "work" / "embedding-cache"
-    path = cache / f"{digest}.json.gz"
-    try:
-        with gzip.open(path, "rt") as stream:
-            return json.load(stream)
-    except (OSError, ValueError):
-        pass
     try:
         result = subprocess.run(
             [str(interpreter), "-c", ENCODE, model],
@@ -74,16 +62,4 @@ def embed(texts):
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         logger.warning("Local embeddings unavailable (%s); using keyword retrieval.", type(exc).__name__)
         return None
-    try:
-        cache.mkdir(mode=0o700, parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=cache, delete=False) as stream:
-            temporary = Path(stream.name)
-        try:
-            with gzip.open(temporary, "wt") as stream:
-                json.dump(vectors, stream)
-            temporary.replace(path)
-        finally:
-            temporary.unlink(missing_ok=True)
-    except OSError:
-        logger.warning("Could not write the local embedding cache.")
     return vectors

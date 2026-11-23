@@ -159,12 +159,13 @@ def _merge_search_results(groups, ranked, limit):
 def _semantic_scores(passages, claims, embed):
     if not (embed and passages and claims):
         return None
-    documents = embed(passages)
-    if documents is None:
+    # Encode source passages and thesis points together so the local model is
+    # loaded once per retrieval, without keeping a persistent vector cache.
+    split = len(passages)
+    vectors = embed(passages + [claim["text"] for claim in claims])
+    if vectors is None:
         return None
-    queries = embed([claim["text"] for claim in claims])
-    if queries is None:
-        return None
+    documents, queries = vectors[:split], vectors[split:]
     def windows(vector):
         if len(vector) == 0:
             return []
